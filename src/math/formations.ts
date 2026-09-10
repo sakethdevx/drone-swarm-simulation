@@ -17,21 +17,39 @@ export const generateFormation = (type: FormationType, count: number, center: Ve
   }
 };
 
+export const rotateVectorHeading = (offset: Vector3, heading: Vector3): Vector3 => {
+  const hLengthSq = heading[0] * heading[0] + heading[2] * heading[2];
+  if (hLengthSq < 0.0001) {
+    return offset;
+  }
+  
+  // Angle relative to default forward [0, 0, 1]
+  const angle = Math.atan2(heading[0], heading[2]);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  const [ox, oy, oz] = offset;
+  return [
+    ox * cos + oz * sin,
+    oy,
+    -ox * sin + oz * cos,
+  ];
+};
+
 const generateSphere = (count: number, center: Vector3): Vector3[] => {
   const points: Vector3[] = [];
   const phi = Math.PI * (3 - Math.sqrt(5)); // golden angle in radians
 
   for (let i = 0; i < count; i++) {
-    const y = 1 - (i / (count - 1)) * 2; // y goes from 1 to -1
-    const radius = Math.sqrt(1 - y * y); // radius at y
+    const y = 1 - (i / Math.max(1, count - 1)) * 2; // y goes from 1 to -1
+    const radius = Math.sqrt(Math.max(0, 1 - y * y));
 
-    const theta = phi * i; // golden angle increment
+    const theta = phi * i;
 
     const x = Math.cos(theta) * radius;
     const z = Math.sin(theta) * radius;
 
-    // Scale sphere radius based on count to give enough space
-    const scale = Math.max(10, Math.pow(count, 0.4) * 3);
+    const scale = Math.max(8, Math.pow(count, 0.4) * 2.5);
     
     points.push([
       center[0] + x * scale,
@@ -45,7 +63,7 @@ const generateSphere = (count: number, center: Vector3): Vector3[] => {
 const generateGrid = (count: number, center: Vector3): Vector3[] => {
   const points: Vector3[] = [];
   const size = Math.ceil(Math.pow(count, 1/3)); // Cube root for 3D grid
-  const spacing = 4.0;
+  const spacing = 3.5;
   
   const offset = (size - 1) * spacing / 2.0;
 
@@ -71,8 +89,8 @@ const generateVShape = (count: number, center: Vector3): Vector3[] => {
   const spacing = 3.0;
   const angle = Math.PI / 6; // 30 degrees half-angle
   
-  // Leader
-  points.push([center[0], center[1], center[2] + 10]);
+  // Leader at front
+  points.push([center[0], center[1], center[2] + 5]);
   
   let added = 1;
   let row = 1;
@@ -82,8 +100,8 @@ const generateVShape = (count: number, center: Vector3): Vector3[] => {
     if (added < count) {
       points.push([
         center[0] - Math.sin(angle) * row * spacing,
-        center[1] + (Math.random() - 0.5), // slight height variation
-        center[2] + 10 - Math.cos(angle) * row * spacing,
+        center[1] + (Math.random() - 0.5) * 0.5,
+        center[2] + 5 - Math.cos(angle) * row * spacing,
       ]);
       added++;
     }
@@ -91,23 +109,23 @@ const generateVShape = (count: number, center: Vector3): Vector3[] => {
     if (added < count) {
       points.push([
         center[0] + Math.sin(angle) * row * spacing,
-        center[1] + (Math.random() - 0.5),
-        center[2] + 10 - Math.cos(angle) * row * spacing,
+        center[1] + (Math.random() - 0.5) * 0.5,
+        center[2] + 5 - Math.cos(angle) * row * spacing,
       ]);
       added++;
     }
     
-    // Add inner filling if we have lots of drones
+    // Add inner filling if count is large
     if (row > 2) {
-        for(let i = 1; i < row; i++) {
-           if (added >= count) break;
-           points.push([
-             center[0] - Math.sin(angle) * (row-i) * spacing + Math.sin(angle)*i*spacing,
-             center[1] - i * 1.5,
-             center[2] + 10 - Math.cos(angle) * row * spacing,
-           ])
-           added++;
-        }
+      for (let i = 1; i < row; i++) {
+        if (added >= count) break;
+        points.push([
+          center[0] - Math.sin(angle) * (row - i) * spacing + Math.sin(angle) * i * spacing,
+          center[1] - i * 1.0,
+          center[2] + 5 - Math.cos(angle) * row * spacing,
+        ]);
+        added++;
+      }
     }
     
     row++;
@@ -117,17 +135,17 @@ const generateVShape = (count: number, center: Vector3): Vector3[] => {
 
 const generateHelix = (count: number, center: Vector3): Vector3[] => {
   const points: Vector3[] = [];
-  const radius = 15.0;
-  const height = 40.0;
+  const radius = 12.0;
+  const height = 30.0;
   const turns = 3;
   
   for (let i = 0; i < count; i++) {
-    const t = i / (count - 1);
+    const t = i / Math.max(1, count - 1);
     const angle = t * Math.PI * 2 * turns;
     
     points.push([
       center[0] + Math.cos(angle) * radius,
-      center[1] - height/2 + t * height,
+      center[1] - height / 2 + t * height,
       center[2] + Math.sin(angle) * radius,
     ]);
   }
@@ -165,7 +183,7 @@ export const matchTargetsGreedy = (currentPos: Float32Array, targets: Vector3[])
       matchedTargets[i] = availableTargets[bestIdx];
       availableTargets.splice(bestIdx, 1);
     } else {
-      matchedTargets[i] = [px, py, pz]; // fallback
+      matchedTargets[i] = [px, py, pz];
     }
   }
   

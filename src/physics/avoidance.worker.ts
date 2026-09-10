@@ -1,10 +1,17 @@
 import { SpatialHashGrid } from './spatialHash';
 
+export type ObstacleData = {
+  position: [number, number, number];
+  radius: number;
+};
+
 // Input message type from main thread
 export type WorkerInput = {
   positions: Float32Array;
   velocities: Float32Array;
   targets: Float32Array;
+  swarmCenterVelocity: [number, number, number];
+  obstacles: ObstacleData[];
   count: number;
   dt: number;
   maxVelocity: number;
@@ -17,10 +24,20 @@ export type WorkerOutput = {
   velocities: Float32Array;
 };
 
-const grid = new SpatialHashGrid(5.0); // Cell size of 5 units
+const grid = new SpatialHashGrid(5.0);
 
 self.onmessage = (e: MessageEvent<WorkerInput>) => {
-  const { positions, velocities, targets, count, dt, maxVelocity, safeDistance } = e.data;
+  const { 
+    positions, 
+    velocities, 
+    targets, 
+    swarmCenterVelocity = [0, 0, 0],
+    obstacles = [], 
+    count, 
+    dt, 
+    maxVelocity, 
+    safeDistance 
+  } = e.data;
   
   // Rebuild spatial hash grid
   grid.clear();
@@ -29,11 +46,11 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     grid.insert(i, positions[idx], positions[idx + 1], positions[idx + 2]);
   }
 
-  // Boids weights
-  const W_SEPARATION = 1.5;
-  const W_COHESION = 0.1;
-  const W_ALIGNMENT = 0.1;
-  const W_TARGET = 1.0;
+  // Force Weights
+  const W_SAFETY = 3.0; // Prioritized high repulsion safety weight
+  const W_TARGET = 1.2;  // Target attraction weight
+
+  const [scVx, scVy, scVz] = swarmCenterVelocity;
 
   for (let i = 0; i < count; i++) {
     const idx = i * 3;
@@ -51,14 +68,11 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     const ty = targets[idx + 1];
     const tz = targets[idx + 2];
 
-    // Get neighbors
-    const neighbors = grid.getNearby(px, py, pz, safeDistance * 2.0);
-    
-    let sepX = 0, sepY = 0, sepZ = 0;
-    let cohX = 0, cohY = 0, cohZ = 0;
-    let aliX = 0, aliY = 0, aliZ = 0;
-    let neighborCount = 0;
+    // 1. Repulsion forces (Micro Avoidance)
+    let repX = 0, repY = 0, repZ = 0;
 
+    // Neighbor Drones Repulsion
+    const neighbors = grid.getNearby(px, py, pz, safeDistance * 2.0);
     for (const n of neighbors) {
       if (n === i) continue;
       const nIdx = n * 3;
@@ -73,72 +87,83 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
       
       if (distSq > 0 && distSq < safeDistance * safeDistance) {
         const dist = Math.sqrt(distSq);
-        // Separation
-        sepX += (dx / dist) / dist;
-        sepY += (dy / dist) / dist;
-        sepZ += (dz / dist) / dist;
-        
-        // Cohesion (accumulate center of mass)
-        cohX += nx;
-        cohY += ny;
-        cohZ += nz;
-        
-        // Alignment
-        aliX += velocities[nIdx];
-        aliY += velocities[nIdx + 1];
-        aliZ += velocities[nIdx + 2];
-        
-        neighborCount++;
+        const force = (safeDistance - dist) / dist;
+        repX += (dx / dist) * force;
+        repY += (dy / dist) * force;
+        repZ += (dz / dist) * force;
       }
     }
 
-    if (neighborCount > 0) {
-      // Cohesion
-      cohX = (cohX / neighborCount) - px;
-      cohY = (cohY / neighborCount) - py;
-      cohZ = (cohZ / neighborCount) - pz;
-      
-      // Alignment
-      aliX = (aliX / neighborCount) - vx;
-      aliY = (aliY / neighborCount) - vy;
-      aliZ = (aliZ / neighborCount) - vz;
+    // Static 3D Obstacle Repulsion
+    for (let o = 0; o < obstacles.length; o++) {
+      const obs = obstacles[o];
+      const ox = obs.position[0];
+      const oy = obs.position[1];
+      const oz = obs.position[2];
+      const effectiveRadius = obs.radius + safeDistance * 1.2;
+
+      const dx = px - ox;
+      const dy = py - oy;
+      const dz = pz - oz;
+      const distSq = dx*dx + dy*dy + dz*dz;
+
+      if (distSq > 0 && distSq < effectiveRadius * effectiveRadius) {
+        const dist = Math.sqrt(distSq);
+        const force = ((effectiveRadius - dist) / dist) * 2.5; // Strong obstacle repulsion
+        repX += (dx / dist) * force;
+        repY += (dy / dist) * force;
+        repZ += (dz / dist) * force;
+      }
     }
 
-    // Target seeking
-    const tgtX = tx - px;
-    const tgtY = ty - py;
-    const tgtZ = tz - pz;
+    // 2. Desired Target Seeking + Swarm Center Velocity Feedforward (Rule 2)
+    const seekX = tx - px;
+    const seekY = ty - py;
+    const seekZ = tz - pz;
+    const seekDist = Math.sqrt(seekX*seekX + seekY*seekY + seekZ*seekZ);
     
-    // Apply forces to velocity
-    let dvx = (sepX * W_SEPARATION) + (cohX * W_COHESION) + (aliX * W_ALIGNMENT) + (tgtX * W_TARGET);
-    let dvy = (sepY * W_SEPARATION) + (cohY * W_COHESION) + (aliY * W_ALIGNMENT) + (tgtY * W_TARGET);
-    let dvz = (sepZ * W_SEPARATION) + (cohZ * W_COHESION) + (aliZ * W_ALIGNMENT) + (tgtZ * W_TARGET);
-    
-    // Update velocity
-    let newVx = vx + dvx * dt;
-    let newVy = vy + dvy * dt;
-    let newVz = vz + dvz * dt;
-    
-    // Clamp velocity
-    const speed = Math.sqrt(newVx*newVx + newVy*newVy + newVz*newVz);
-    if (speed > maxVelocity) {
-      newVx = (newVx / speed) * maxVelocity;
-      newVy = (newVy / speed) * maxVelocity;
-      newVz = (newVz / speed) * maxVelocity;
+    let targetVx = 0;
+    let targetVy = 0;
+    let targetVz = 0;
+
+    if (seekDist > 0.01) {
+      // Speed proportional to distance, capped at maxVelocity
+      const targetSpeed = Math.min(seekDist * 2.0, maxVelocity);
+      targetVx = (seekX / seekDist) * targetSpeed;
+      targetVy = (seekY / seekDist) * targetSpeed;
+      targetVz = (seekZ / seekDist) * targetSpeed;
     }
 
-    // Apply damping (friction)
-    const damping = 0.98;
-    newVx *= damping;
-    newVy *= damping;
-    newVz *= damping;
+    // Feedforward: Add swarm center's velocity so drones move cohesively without lag (Rule 2)
+    const desiredVx = targetVx * W_TARGET + scVx;
+    const desiredVy = targetVy * W_TARGET + scVy;
+    const desiredVz = targetVz * W_TARGET + scVz;
 
-    // Update positions
+    // Combine Desired Velocity with Safety Repulsion
+    let newVx = desiredVx + repX * W_SAFETY;
+    let newVy = desiredVy + repY * W_SAFETY;
+    let newVz = desiredVz + repZ * W_SAFETY;
+
+    // Smooth inertia / damping towards target velocity
+    const lerpFactor = Math.min(dt * 8.0, 1.0);
+    newVx = vx + (newVx - vx) * lerpFactor;
+    newVy = vy + (newVy - vy) * lerpFactor;
+    newVz = vz + (newVz - vz) * lerpFactor;
+
+    // Clamp final velocity to maxVelocity limit
+    const finalSpeed = Math.sqrt(newVx*newVx + newVy*newVy + newVz*newVz);
+    if (finalSpeed > maxVelocity) {
+      newVx = (newVx / finalSpeed) * maxVelocity;
+      newVy = (newVy / finalSpeed) * maxVelocity;
+      newVz = (newVz / finalSpeed) * maxVelocity;
+    }
+
+    // Update position
     positions[idx] = px + newVx * dt;
     positions[idx + 1] = py + newVy * dt;
     positions[idx + 2] = pz + newVz * dt;
 
-    // Write back velocities
+    // Write back velocity
     velocities[idx] = newVx;
     velocities[idx + 1] = newVy;
     velocities[idx + 2] = newVz;

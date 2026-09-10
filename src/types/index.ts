@@ -1,8 +1,16 @@
 export type FormationType = 'sphere' | 'grid' | 'v-shape' | 'helix';
 
+export type SwarmState = 'IDLE' | 'ASSEMBLING' | 'NAVIGATING' | 'COMPLETED';
+
 export interface Waypoint {
   id: string;
   position: [number, number, number];
+}
+
+export interface Obstacle {
+  id: string;
+  position: [number, number, number];
+  radius: number;
 }
 
 export interface DroneState {
@@ -21,18 +29,25 @@ export interface SimulationState {
   safeDistance: number;
   formationTransitionSpeed: number;
   
-  // Active State
+  // Active State & Pipeline
   currentFormation: FormationType;
+  swarmState: SwarmState;
+  swarmCenterPosition: [number, number, number];
+  swarmCenterVelocity: [number, number, number];
+  assemblyError: number;
+  
   drones: DroneState[];
   waypoints: Waypoint[];
+  obstacles: Obstacle[];
   
   // Timeline Control
   isPlaying: boolean;
   playbackSpeed: number;
   currentTime: number;
   
-  // Geofence / Bounds
+  // Visual & Geofence Bounds
   bounds: [number, number, number]; // [width, height, depth]
+  showDebugVisuals: boolean;
   
   // Telemetry
   fps: number;

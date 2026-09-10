@@ -3,6 +3,8 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Sky, Grid } from '@react-three/drei';
 import DroneSwarm from './DroneSwarm';
 import WaypointEditor from '../Planner/WaypointEditor';
+import SwarmPathNavigator from './SwarmPathNavigator';
+import DebugVisualizer from './DebugVisualizer';
 import { useSimulationStore } from '../../store/useSimulationStore';
 
 const CanvasEnvironment: React.FC = () => {
@@ -10,10 +12,10 @@ const CanvasEnvironment: React.FC = () => {
 
   return (
     <div className="absolute inset-0 z-0 bg-zinc-950">
-      <Canvas camera={{ position: [0, 40, 80], fov: 60 }}>
+      <Canvas camera={{ position: [0, 45, 90], fov: 60 }}>
         {/* Environment & Lighting */}
         <color attach="background" args={['#09090b']} />
-        <ambientLight intensity={0.2} />
+        <ambientLight intensity={0.3} />
         <directionalLight position={[50, 100, 50]} intensity={1.5} castShadow />
         <pointLight position={[-50, 50, -50]} intensity={0.5} />
         
@@ -22,7 +24,7 @@ const CanvasEnvironment: React.FC = () => {
         {/* Floor Grid */}
         <Grid
           infiniteGrid
-          fadeDistance={200}
+          fadeDistance={250}
           sectionColor="#27272a"
           cellColor="#18181b"
           sectionSize={10}
@@ -36,11 +38,13 @@ const CanvasEnvironment: React.FC = () => {
           <meshBasicMaterial color="#ef4444" wireframe transparent opacity={0.05} />
         </mesh>
 
-        {/* Swarm & Interaction */}
+        {/* Path Navigator & Swarm Simulation */}
+        <SwarmPathNavigator />
         <DroneSwarm />
         <WaypointEditor />
+        <DebugVisualizer />
 
-        {/* Controls */}
+        {/* Orbit Controls */}
         <OrbitControls 
           makeDefault 
           maxPolarAngle={Math.PI / 2 - 0.05} 
