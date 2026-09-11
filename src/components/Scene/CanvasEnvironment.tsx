@@ -5,14 +5,19 @@ import DroneSwarm from './DroneSwarm';
 import WaypointEditor from '../Planner/WaypointEditor';
 import SwarmPathNavigator from './SwarmPathNavigator';
 import DebugVisualizer from './DebugVisualizer';
+import ObstacleManager from './ObstacleManager';
 import { useSimulationStore } from '../../store/useSimulationStore';
 
 const CanvasEnvironment: React.FC = () => {
   const { bounds } = useSimulationStore();
+  const selectObstacle = useSimulationStore((state) => state.selectObstacle);
 
   return (
     <div className="absolute inset-0 z-0 bg-zinc-950">
-      <Canvas camera={{ position: [0, 45, 90], fov: 60 }}>
+      <Canvas 
+        camera={{ position: [0, 45, 90], fov: 60 }}
+        onPointerMissed={() => selectObstacle(null)}
+      >
         {/* Environment & Lighting */}
         <color attach="background" args={['#09090b']} />
         <ambientLight intensity={0.3} />
@@ -42,6 +47,7 @@ const CanvasEnvironment: React.FC = () => {
         <SwarmPathNavigator />
         <DroneSwarm />
         <WaypointEditor />
+        <ObstacleManager />
         <DebugVisualizer />
 
         {/* Orbit Controls */}

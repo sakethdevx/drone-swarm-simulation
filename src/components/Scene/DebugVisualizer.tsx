@@ -4,7 +4,7 @@ import { Line } from '@react-three/drei';
 import { useSimulationStore } from '../../store/useSimulationStore';
 
 export const DebugVisualizer: React.FC = () => {
-  const { showDebugVisuals, swarmCenterPosition, waypoints, obstacles } = useSimulationStore();
+  const { showDebugVisuals, swarmCenterPosition, waypoints } = useSimulationStore();
 
   const curvePoints = useMemo(() => {
     if (waypoints.length < 2) {
@@ -45,21 +45,6 @@ export const DebugVisualizer: React.FC = () => {
           opacity={0.7}
         />
       )}
-
-      {/* 3. Static 3D Obstacle Geometries */}
-      {obstacles.map((obs) => (
-        <mesh key={obs.id} position={obs.position}>
-          <sphereGeometry args={[obs.radius, 32, 32]} />
-          <meshStandardMaterial 
-            color="#ef4444" 
-            emissive="#991b1b" 
-            emissiveIntensity={0.5} 
-            transparent 
-            opacity={0.35} 
-            wireframe
-          />
-        </mesh>
-      ))}
     </group>
   );
 };

@@ -11,6 +11,7 @@ export interface Obstacle {
   id: string;
   position: [number, number, number];
   radius: number;
+  type?: 'sphere' | 'box';
 }
 
 export interface DroneState {
@@ -39,6 +40,7 @@ export interface SimulationState {
   drones: DroneState[];
   waypoints: Waypoint[];
   obstacles: Obstacle[];
+  selectedObstacleId: string | null;
   
   // Timeline Control
   isPlaying: boolean;

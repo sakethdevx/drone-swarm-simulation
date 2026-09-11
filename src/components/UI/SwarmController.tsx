@@ -1,7 +1,8 @@
 import React from 'react';
 import { useSimulationStore } from '../../store/useSimulationStore';
 import type { FormationType, SwarmState } from '../../types';
-import { Play, Pause, Square, FastForward, Eye, EyeOff, ShieldAlert } from 'lucide-react';
+import { Play, Pause, Square, FastForward, Eye, EyeOff, ShieldAlert, Plus, Trash2, X } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 
 const formations: { value: FormationType; label: string }[] = [
   { value: 'sphere', label: 'Sphere' },
@@ -26,15 +27,19 @@ const SwarmController: React.FC = () => {
     playbackSpeed, setPlaybackSpeed,
     clearWaypoints,
     showDebugVisuals, toggleDebugVisuals,
-    obstacles, addObstacle, removeObstacle
+    obstacles, addObstacle, clearAllObstacles,
+    selectedObstacleId, updateObstacleRadius, removeObstacle
   } = useSimulationStore();
+  
+  const selectedObstacle = obstacles.find(o => o.id === selectedObstacleId);
 
-  const handleToggleObstacle = () => {
-    if (obstacles.length > 0) {
-      removeObstacle('obs-1');
-    } else {
-      addObstacle({ id: 'obs-1', position: [0, 20, 30], radius: 6.0 });
-    }
+  const handleAddObstacle = () => {
+    addObstacle({ 
+      id: uuidv4(), 
+      position: [0, 20, 0], 
+      radius: 6.0,
+      type: 'sphere'
+    });
   };
 
   return (
@@ -112,32 +117,82 @@ const SwarmController: React.FC = () => {
         />
       </div>
 
-      {/* Toggles: Debug Visuals & Obstacle */}
-      <div className="flex gap-2 pt-2 border-t border-zinc-800/80">
+      {/* Debug Visuals Toggle */}
+      <div className="pt-2 border-t border-zinc-800/80">
         <button
           onClick={toggleDebugVisuals}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium transition-all ${
+          className={`w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium transition-all ${
             showDebugVisuals 
               ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' 
               : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800'
           }`}
         >
           {showDebugVisuals ? <Eye size={14} /> : <EyeOff size={14} />}
-          {showDebugVisuals ? 'Debug On' : 'Debug Off'}
-        </button>
-
-        <button
-          onClick={handleToggleObstacle}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium transition-all ${
-            obstacles.length > 0 
-              ? 'bg-red-500/20 text-red-300 border border-red-500/30' 
-              : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800'
-          }`}
-        >
-          <ShieldAlert size={14} />
-          {obstacles.length > 0 ? 'Obstacle On' : 'No Obstacle'}
+          {showDebugVisuals ? 'Debug Visuals: On' : 'Debug Visuals: Off'}
         </button>
       </div>
+
+      {/* Obstacle Management Toolbar */}
+      <div className="pt-2 border-t border-zinc-800/80">
+        <div className="flex justify-between items-center mb-2">
+          <label className="text-xs text-zinc-400 font-medium">Obstacles ({obstacles.length})</label>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleAddObstacle}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-colors"
+          >
+            <Plus size={14} /> Add Obstacle
+          </button>
+          
+          <button
+            onClick={clearAllObstacles}
+            disabled={obstacles.length === 0}
+            className={`flex items-center justify-center py-2 px-3 rounded-xl transition-colors ${
+              obstacles.length > 0 
+                ? 'bg-zinc-800 hover:bg-red-500/20 hover:text-red-400 text-zinc-400' 
+                : 'bg-zinc-900/50 text-zinc-600 cursor-not-allowed'
+            }`}
+            title="Clear All Obstacles"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Selected Obstacle Inspector */}
+      {selectedObstacle && (
+        <div className="bg-zinc-900/80 border border-zinc-700/50 p-3 rounded-xl flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1">
+              <ShieldAlert size={14} className="text-red-400"/> Selected Obstacle
+            </span>
+            <button 
+              onClick={() => removeObstacle(selectedObstacle.id)}
+              className="text-zinc-500 hover:text-red-400 transition-colors"
+              title="Delete Obstacle"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+          
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-[10px] text-zinc-400">Radius</label>
+              <span className="text-[10px] font-mono text-zinc-300">{selectedObstacle.radius.toFixed(1)}m</span>
+            </div>
+            <input 
+              type="range" 
+              min="2.0" 
+              max="20.0" 
+              step="0.5"
+              value={selectedObstacle.radius}
+              onChange={(e) => updateObstacleRadius(selectedObstacle.id, parseFloat(e.target.value))}
+              className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-red-500"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

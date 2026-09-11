@@ -13,6 +13,10 @@ interface SimulationActions {
   clearWaypoints: () => void;
   addObstacle: (obstacle: Obstacle) => void;
   removeObstacle: (id: string) => void;
+  updateObstaclePosition: (id: string, position: [number, number, number]) => void;
+  updateObstacleRadius: (id: string, radius: number) => void;
+  selectObstacle: (id: string | null) => void;
+  clearAllObstacles: () => void;
   togglePlayback: () => void;
   setPlaybackSpeed: (speed: number) => void;
   setCurrentTime: (time: number) => void;
@@ -34,9 +38,7 @@ const initialDrones = (count: number): DroneState[] => {
   }));
 };
 
-const defaultObstacles: Obstacle[] = [
-  { id: 'obs-1', position: [0, 20, 30], radius: 6.0 },
-];
+const defaultObstacles: Obstacle[] = [];
 
 export const useSimulationStore = create<SimulationStore>((set) => ({
   // Initial State
@@ -57,6 +59,7 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
     { id: 'wp-end', position: [30, 25, 100] }
   ],
   obstacles: defaultObstacles,
+  selectedObstacleId: null,
   
   isPlaying: false,
   playbackSpeed: 1.0,
@@ -82,7 +85,18 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   clearWaypoints: () => set({ waypoints: [], swarmState: 'IDLE' }),
   
   addObstacle: (obstacle: Obstacle) => set((state) => ({ obstacles: [...state.obstacles, obstacle] })),
-  removeObstacle: (id: string) => set((state) => ({ obstacles: state.obstacles.filter(o => o.id !== id) })),
+  removeObstacle: (id: string) => set((state) => ({ 
+    obstacles: state.obstacles.filter(o => o.id !== id),
+    selectedObstacleId: state.selectedObstacleId === id ? null : state.selectedObstacleId
+  })),
+  updateObstaclePosition: (id, position) => set(state => ({
+    obstacles: state.obstacles.map(o => o.id === id ? { ...o, position } : o)
+  })),
+  updateObstacleRadius: (id, radius) => set(state => ({
+    obstacles: state.obstacles.map(o => o.id === id ? { ...o, radius } : o)
+  })),
+  selectObstacle: (id) => set({ selectedObstacleId: id }),
+  clearAllObstacles: () => set({ obstacles: [], selectedObstacleId: null }),
   
   // Toggle Playback: when starting play, transition to ASSEMBLING unless already NAVIGATING
   togglePlayback: () => set((state) => {

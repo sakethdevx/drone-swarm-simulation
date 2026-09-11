@@ -7,6 +7,7 @@ import { Line } from '@react-three/drei';
 const WaypointEditor: React.FC = () => {
   const waypoints = useSimulationStore((state) => state.waypoints);
   const addWaypoint = useSimulationStore((state) => state.addWaypoint);
+  const addObstacle = useSimulationStore((state) => state.addObstacle);
   
   // Invisible plane for raycasting
   const planeRef = useRef<THREE.Mesh>(null);
@@ -19,6 +20,15 @@ const WaypointEditor: React.FC = () => {
       addWaypoint({
         id: uuidv4(),
         position: [point.x, point.y + 2, point.z] // Place slightly above surface
+      });
+    } else if (e.altKey) {
+      e.stopPropagation();
+      const point = e.point;
+      addObstacle({
+        id: uuidv4(),
+        position: [point.x, point.y + 10, point.z], // Default height
+        radius: 8.0,
+        type: 'sphere'
       });
     }
   };
