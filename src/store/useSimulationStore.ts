@@ -1,10 +1,31 @@
 import { create } from 'zustand';
-import type { SimulationState, FormationType, Waypoint, SwarmState, Obstacle, TelemetrySample, ScenarioDefinition } from '../types';
+import type { SimulationState, FormationType, Waypoint, SwarmState, Obstacle, TelemetrySample, ScenarioDefinition, SavedMission } from '../types';
+
+const MISSIONS_STORAGE_KEY = 'drone-simulation-missions';
+
+const readSavedMissions = (): SavedMission[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const saved = window.localStorage.getItem(MISSIONS_STORAGE_KEY);
+    return saved ? JSON.parse(saved) as SavedMission[] : [];
+  } catch {
+    return [];
+  }
+};
+
+const persistSavedMissions = (missions: SavedMission[]) => {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(MISSIONS_STORAGE_KEY, JSON.stringify(missions));
+  }
+};
 
 interface SimulationActions {
   setDroneCount: (count: number) => void;
   setFormation: (formation: FormationType) => void;
   loadScenario: (scenario: ScenarioDefinition) => void;
+  saveMission: (name: string) => void;
+  loadMission: (id: string) => void;
+  deleteMission: (id: string) => void;
   setImageFormation: (points: [number, number, number][], name: string, preview: string) => void;
   clearImageFormation: () => void;
   setSwarmState: (swarmState: SwarmState) => void;
@@ -33,6 +54,7 @@ interface SimulationActions {
   toggleDebugVisuals: () => void;
   toggleTrails: () => void;
   toggleVelocityVectors: () => void;
+  toggleCameraFollow: () => void;
 }
 
 export type SimulationStore = SimulationState & SimulationActions;
@@ -45,6 +67,8 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   formationTransitionSpeed: 1.0,
   currentFormation: 'sphere',
   currentScenario: 'open-sky',
+  currentMissionName: null,
+  savedMissions: readSavedMissions(),
   imageFormationPoints: [],
   imageFormationName: null,
   imageFormationPreview: null,
@@ -69,6 +93,7 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   showDebugVisuals: true,
   showTrails: true,
   showVelocityVectors: false,
+  cameraFollow: false,
 
   // Actions
   // Pause playback when count changes so drones can re-assemble in the new formation.
@@ -91,6 +116,60 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
     assemblyError: 99.0,
     swarmCenterPosition: scenario.waypoints[0]?.position ?? [0, 20, 0],
     swarmCenterVelocity: [0, 0, 0],
+  }),
+  saveMission: (name) => set((state) => {
+    const trimmedName = name.trim();
+    if (!trimmedName) return state;
+
+    const mission: SavedMission = {
+      id: crypto.randomUUID(),
+      name: trimmedName,
+      createdAt: Date.now(),
+      droneCount: state.droneCount,
+      formation: state.currentFormation,
+      imageFormationPoints: state.imageFormationPoints,
+      imageFormationName: state.imageFormationName,
+      imageFormationPreview: state.imageFormationPreview,
+      maxVelocity: state.maxVelocity,
+      safeDistance: state.safeDistance,
+      waypoints: state.waypoints,
+      obstacles: state.obstacles,
+      bounds: state.bounds,
+    };
+    const savedMissions = [...state.savedMissions, mission];
+    persistSavedMissions(savedMissions);
+    return { savedMissions, currentMissionName: trimmedName };
+  }),
+  loadMission: (id) => set((state) => {
+    const mission = state.savedMissions.find((saved) => saved.id === id);
+    if (!mission) return state;
+    return {
+      currentMissionName: mission.name,
+      currentScenario: 'custom',
+      droneCount: mission.droneCount,
+      currentFormation: mission.formation,
+      imageFormationPoints: mission.imageFormationPoints,
+      imageFormationName: mission.imageFormationName,
+      imageFormationPreview: mission.imageFormationPreview,
+      maxVelocity: mission.maxVelocity,
+      safeDistance: mission.safeDistance,
+      waypoints: mission.waypoints,
+      obstacles: mission.obstacles,
+      bounds: mission.bounds,
+      selectedObstacleId: null,
+      swarmState: 'ASSEMBLING',
+      isPlaying: false,
+      currentTime: 0,
+      telemetryHistory: [],
+      assemblyError: 99.0,
+      swarmCenterPosition: mission.waypoints[0]?.position ?? [0, 20, 0],
+      swarmCenterVelocity: [0, 0, 0],
+    };
+  }),
+  deleteMission: (id) => set((state) => {
+    const savedMissions = state.savedMissions.filter((mission) => mission.id !== id);
+    persistSavedMissions(savedMissions);
+    return { savedMissions };
   }),
   setImageFormation: (points, name, preview) => set({
     imageFormationPoints: points,
@@ -183,4 +262,5 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   toggleDebugVisuals: () => set((state) => ({ showDebugVisuals: !state.showDebugVisuals })),
   toggleTrails: () => set((state) => ({ showTrails: !state.showTrails })),
   toggleVelocityVectors: () => set((state) => ({ showVelocityVectors: !state.showVelocityVectors })),
+  toggleCameraFollow: () => set((state) => ({ cameraFollow: !state.cameraFollow })),
 }));

@@ -6,6 +6,7 @@ import WaypointEditor from '../Planner/WaypointEditor';
 import SwarmPathNavigator from './SwarmPathNavigator';
 import DebugVisualizer from './DebugVisualizer';
 import ObstacleManager from './ObstacleManager';
+import CameraFollow from './CameraFollow';
 import { useSimulationStore } from '../../store/useSimulationStore';
 
 const CanvasEnvironment: React.FC = () => {
@@ -45,6 +46,7 @@ const CanvasEnvironment: React.FC = () => {
 
         {/* Path Navigator & Swarm Simulation */}
         <SwarmPathNavigator />
+        <CameraFollow />
         <DroneSwarm />
         <WaypointEditor />
         <ObstacleManager />

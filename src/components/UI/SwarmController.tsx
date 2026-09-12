@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSimulationStore } from '../../store/useSimulationStore';
 import type { FormationType, SwarmState } from '../../types';
-import { Play, Pause, FastForward, Eye, EyeOff, ShieldAlert, Plus, Trash2, X, RotateCcw, Move3d, Waves } from 'lucide-react';
+import { Play, Pause, FastForward, Eye, EyeOff, ShieldAlert, Plus, Trash2, X, RotateCcw, Move3d, Waves, Video } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 const formations: { value: FormationType; label: string }[] = [
@@ -45,6 +45,8 @@ const SwarmController: React.FC = () => {
   const toggleTrails = useSimulationStore((s) => s.toggleTrails);
   const showVelocityVectors = useSimulationStore((s) => s.showVelocityVectors);
   const toggleVelocityVectors = useSimulationStore((s) => s.toggleVelocityVectors);
+  const cameraFollow = useSimulationStore((s) => s.cameraFollow);
+  const toggleCameraFollow = useSimulationStore((s) => s.toggleCameraFollow);
   const obstacles = useSimulationStore((s) => s.obstacles);
   const addObstacle = useSimulationStore((s) => s.addObstacle);
   const clearAllObstacles = useSimulationStore((s) => s.clearAllObstacles);
@@ -178,7 +180,7 @@ const SwarmController: React.FC = () => {
 
       {/* Debug Visuals Toggle */}
       <div className="pt-2 border-t border-zinc-800/80">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           <button
             onClick={toggleDebugVisuals}
             className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-[10px] font-medium transition-all ${
@@ -187,6 +189,15 @@ const SwarmController: React.FC = () => {
             title="Toggle route and center debug visuals"
           >
             {showDebugVisuals ? <Eye size={13} /> : <EyeOff size={13} />} Debug
+          </button>
+          <button
+            onClick={toggleCameraFollow}
+            className={`flex items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium transition-all ${
+              cameraFollow ? 'border border-violet-500/30 bg-violet-500/20 text-violet-200' : 'border border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+            }`}
+            title="Follow the swarm center with the camera"
+          >
+            <Video size={13} /> Follow
           </button>
           <button
             onClick={toggleTrails}

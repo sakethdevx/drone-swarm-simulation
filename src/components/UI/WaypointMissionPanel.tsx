@@ -34,7 +34,7 @@ const WaypointMissionPanel: React.FC = () => {
                 <span className="font-mono text-[10px] text-amber-300">WP {String(index + 1).padStart(2, '0')}</span>
               </div>
 
-              <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+              <div className="grid grid-cols-3 items-end gap-2">
                 <label className="text-[10px] text-zinc-500">
                   Altitude
                   <div className="mt-1 flex items-center gap-1">
@@ -50,6 +50,40 @@ const WaypointMissionPanel: React.FC = () => {
                       className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 font-mono text-xs text-zinc-200 outline-none focus:border-cyan-500"
                     />
                     <span className="font-mono text-[10px] text-zinc-600">m</span>
+                  </div>
+                </label>
+
+                <label className="text-[10px] text-zinc-500">
+                  Speed
+                  <div className="mt-1 flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      step="0.5"
+                      value={waypoint.speed ?? 10}
+                      onChange={(event) => updateWaypoint(waypoint.id, { speed: Number(event.target.value) })}
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 font-mono text-xs text-zinc-200 outline-none focus:border-cyan-500"
+                      aria-label={`${waypoint.label ?? `Waypoint ${index + 1}`} speed`}
+                    />
+                    <span className="font-mono text-[10px] text-zinc-600">m/s</span>
+                  </div>
+                </label>
+
+                <label className="text-[10px] text-zinc-500">
+                  Hold
+                  <div className="mt-1 flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="60"
+                      step="1"
+                      value={waypoint.holdTime ?? 0}
+                      onChange={(event) => updateWaypoint(waypoint.id, { holdTime: Number(event.target.value) })}
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 font-mono text-xs text-zinc-200 outline-none focus:border-cyan-500"
+                      aria-label={`${waypoint.label ?? `Waypoint ${index + 1}`} hold time`}
+                    />
+                    <span className="font-mono text-[10px] text-zinc-600">s</span>
                   </div>
                 </label>
 

@@ -6,6 +6,8 @@ export interface Waypoint {
   id: string;
   position: [number, number, number];
   label?: string;
+  speed?: number;
+  holdTime?: number;
 }
 
 export interface Obstacle {
@@ -21,6 +23,22 @@ export interface ScenarioDefinition {
   summary: string;
   droneCount: number;
   formation: FormationType;
+  waypoints: Waypoint[];
+  obstacles: Obstacle[];
+  bounds: [number, number, number];
+}
+
+export interface SavedMission {
+  id: string;
+  name: string;
+  createdAt: number;
+  droneCount: number;
+  formation: FormationType;
+  imageFormationPoints: [number, number, number][];
+  imageFormationName: string | null;
+  imageFormationPreview: string | null;
+  maxVelocity: number;
+  safeDistance: number;
   waypoints: Waypoint[];
   obstacles: Obstacle[];
   bounds: [number, number, number];
@@ -53,6 +71,8 @@ export interface SimulationState {
   // Active State & Pipeline
   currentFormation: FormationType;
   currentScenario: string;
+  currentMissionName: string | null;
+  savedMissions: SavedMission[];
   imageFormationPoints: [number, number, number][];
   imageFormationName: string | null;
   imageFormationPreview: string | null;
@@ -77,6 +97,7 @@ export interface SimulationState {
   showDebugVisuals: boolean;
   showTrails: boolean;
   showVelocityVectors: boolean;
+  cameraFollow: boolean;
 }
 
 export interface TelemetryData {

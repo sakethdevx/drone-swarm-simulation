@@ -5,6 +5,7 @@ import MissionTimeline from './MissionTimeline';
 import WaypointMissionPanel from './WaypointMissionPanel';
 import ImageFormationPanel from './ImageFormationPanel';
 import ScenarioPanel from './ScenarioPanel';
+import MissionLibrary from './MissionLibrary';
 
 const Dashboard: React.FC = () => {
   return (
@@ -16,6 +17,7 @@ const Dashboard: React.FC = () => {
           <WaypointMissionPanel />
           <ImageFormationPanel />
           <ScenarioPanel />
+          <MissionLibrary />
         </div>
         <TelemetryOverlay />
       </div>

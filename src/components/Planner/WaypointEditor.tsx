@@ -21,6 +21,8 @@ const WaypointEditor: React.FC = () => {
         id: uuidv4(),
         position: [point.x, point.y + 2, point.z],
         label: `Waypoint ${waypoints.length + 1}`,
+        speed: 10,
+        holdTime: 0,
       });
     } else if (e.altKey) {
       e.stopPropagation();

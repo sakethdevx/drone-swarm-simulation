@@ -21,6 +21,8 @@ export const SwarmPathNavigator: React.FC = () => {
   // Track previous swarmState to detect transitions into ASSEMBLING
   const prevSwarmStateRef = useRef<SwarmState>('IDLE');
   const lastPublishedProgressRef = useRef(-1);
+  const holdElapsedRef = useRef(0);
+  const heldWaypointRef = useRef(-1);
 
   // Build Catmull-Rom Spline from Waypoints
   const { curve, pathLength } = useMemo(() => {
@@ -44,6 +46,8 @@ export const SwarmPathNavigator: React.FC = () => {
   useEffect(() => {
     progressRef.current = 0;
     lastPublishedProgressRef.current = -1;
+    holdElapsedRef.current = 0;
+    heldWaypointRef.current = -1;
     setCurrentTime(0);
     if (curve) {
       const startPt = curve.getPointAt(0);
@@ -59,6 +63,8 @@ export const SwarmPathNavigator: React.FC = () => {
     if (swarmState === 'ASSEMBLING' && prevSwarmStateRef.current !== 'ASSEMBLING') {
       progressRef.current = 0;
       lastPublishedProgressRef.current = -1;
+      holdElapsedRef.current = 0;
+      heldWaypointRef.current = -1;
       setCurrentTime(0);
       if (curve) {
         const startPt = curve.getPointAt(0);
@@ -87,8 +93,27 @@ export const SwarmPathNavigator: React.FC = () => {
     } else if (swarmState === 'NAVIGATING') {
       if (!isPlaying) return;
 
-      // Advance progress along curve
-      const cruiseSpeed = maxVelocity * 0.4 * playbackSpeed; // Cruise at ~40% max speed
+      const segmentCount = Math.max(1, waypoints.length - 1);
+      const waypointIndex = Math.min(segmentCount, Math.floor(progressRef.current * segmentCount + 0.0001));
+      const waypointProgress = waypointIndex / segmentCount;
+      const waypoint = waypoints[waypointIndex];
+
+      if (waypointIndex > 0 && waypointIndex < segmentCount && progressRef.current >= waypointProgress - 0.0001) {
+        if (heldWaypointRef.current !== waypointIndex) {
+          heldWaypointRef.current = waypointIndex;
+          holdElapsedRef.current = 0;
+        }
+        holdElapsedRef.current += delta;
+        if (holdElapsedRef.current < (waypoint.holdTime ?? 0)) {
+          const holdPoint = curve.getPointAt(waypointProgress);
+          setSwarmCenterPosition([holdPoint.x, holdPoint.y, holdPoint.z]);
+          setSwarmCenterVelocity([0, 0, 0]);
+          return;
+        }
+      }
+
+      // Advance progress along curve using the active waypoint's speed.
+      const cruiseSpeed = Math.min(maxVelocity, waypoint?.speed ?? maxVelocity * 0.4) * playbackSpeed;
       const dtProgress = (cruiseSpeed * delta) / pathLength;
       
       progressRef.current = Math.min(1.0, progressRef.current + dtProgress);
