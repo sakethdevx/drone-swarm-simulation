@@ -1,10 +1,11 @@
-export type FormationType = 'sphere' | 'grid' | 'helix' | 'line' | 'ring' | 'diamond';
+export type FormationType = 'sphere' | 'grid' | 'helix' | 'line' | 'ring' | 'diamond' | 'image';
 
 export type SwarmState = 'IDLE' | 'ASSEMBLING' | 'NAVIGATING' | 'COMPLETED';
 
 export interface Waypoint {
   id: string;
   position: [number, number, number];
+  label?: string;
 }
 
 export interface Obstacle {
@@ -12,6 +13,17 @@ export interface Obstacle {
   position: [number, number, number];
   radius: number;
   type?: 'sphere' | 'box';
+}
+
+export interface ScenarioDefinition {
+  id: string;
+  name: string;
+  summary: string;
+  droneCount: number;
+  formation: FormationType;
+  waypoints: Waypoint[];
+  obstacles: Obstacle[];
+  bounds: [number, number, number];
 }
 
 export interface DroneState {
@@ -23,6 +35,14 @@ export interface DroneState {
   battery: number; // 0 to 1
 }
 
+export interface TelemetrySample {
+  timestamp: number;
+  assemblyError: number;
+  speed: number;
+  altitude: number;
+  progress: number;
+}
+
 export interface SimulationState {
   // Swarm Configuration
   droneCount: number;
@@ -32,6 +52,10 @@ export interface SimulationState {
   
   // Active State & Pipeline
   currentFormation: FormationType;
+  currentScenario: string;
+  imageFormationPoints: [number, number, number][];
+  imageFormationName: string | null;
+  imageFormationPreview: string | null;
   swarmState: SwarmState;
   swarmCenterPosition: [number, number, number];
   swarmCenterVelocity: [number, number, number];
@@ -46,10 +70,13 @@ export interface SimulationState {
   isPlaying: boolean;
   playbackSpeed: number;
   currentTime: number;
+  telemetryHistory: TelemetrySample[];
   
   // Visual & Geofence Bounds
   bounds: [number, number, number]; // [width, height, depth]
   showDebugVisuals: boolean;
+  showTrails: boolean;
+  showVelocityVectors: boolean;
 }
 
 export interface TelemetryData {

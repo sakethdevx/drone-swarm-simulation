@@ -19,7 +19,8 @@ const WaypointEditor: React.FC = () => {
       const point = e.point;
       addWaypoint({
         id: uuidv4(),
-        position: [point.x, point.y + 2, point.z] // Place slightly above surface
+        position: [point.x, point.y + 2, point.z],
+        label: `Waypoint ${waypoints.length + 1}`,
       });
     } else if (e.altKey) {
       e.stopPropagation();

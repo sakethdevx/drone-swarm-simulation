@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSimulationStore } from '../../store/useSimulationStore';
 import type { FormationType, SwarmState } from '../../types';
-import { Play, Pause, Square, FastForward, Eye, EyeOff, ShieldAlert, Plus, Trash2, X } from 'lucide-react';
+import { Play, Pause, FastForward, Eye, EyeOff, ShieldAlert, Plus, Trash2, X, RotateCcw, Move3d, Waves } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 const formations: { value: FormationType; label: string }[] = [
@@ -11,6 +11,7 @@ const formations: { value: FormationType; label: string }[] = [
   { value: 'line', label: 'Line' },
   { value: 'ring', label: 'Ring' },
   { value: 'diamond', label: 'Diamond' },
+  { value: 'image', label: 'Image Show' },
 ];
 
 const stateBadges: Record<SwarmState, { label: string; color: string }> = {
@@ -26,15 +27,24 @@ const SwarmController: React.FC = () => {
   const droneCount = useSimulationStore((s) => s.droneCount);
   const setDroneCount = useSimulationStore((s) => s.setDroneCount);
   const currentFormation = useSimulationStore((s) => s.currentFormation);
+  const imageFormationPoints = useSimulationStore((s) => s.imageFormationPoints);
   const setFormation = useSimulationStore((s) => s.setFormation);
   const swarmState = useSimulationStore((s) => s.swarmState);
   const isPlaying = useSimulationStore((s) => s.isPlaying);
   const togglePlayback = useSimulationStore((s) => s.togglePlayback);
   const playbackSpeed = useSimulationStore((s) => s.playbackSpeed);
   const setPlaybackSpeed = useSimulationStore((s) => s.setPlaybackSpeed);
-  const clearWaypoints = useSimulationStore((s) => s.clearWaypoints);
+  const safeDistance = useSimulationStore((s) => s.safeDistance);
+  const maxVelocity = useSimulationStore((s) => s.maxVelocity);
+  const setMaxVelocity = useSimulationStore((s) => s.setMaxVelocity);
+  const setSafeDistance = useSimulationStore((s) => s.setSafeDistance);
+  const resetMission = useSimulationStore((s) => s.resetMission);
   const showDebugVisuals = useSimulationStore((s) => s.showDebugVisuals);
   const toggleDebugVisuals = useSimulationStore((s) => s.toggleDebugVisuals);
+  const showTrails = useSimulationStore((s) => s.showTrails);
+  const toggleTrails = useSimulationStore((s) => s.toggleTrails);
+  const showVelocityVectors = useSimulationStore((s) => s.showVelocityVectors);
+  const toggleVelocityVectors = useSimulationStore((s) => s.toggleVelocityVectors);
   const obstacles = useSimulationStore((s) => s.obstacles);
   const addObstacle = useSimulationStore((s) => s.addObstacle);
   const clearAllObstacles = useSimulationStore((s) => s.clearAllObstacles);
@@ -83,13 +93,48 @@ const SwarmController: React.FC = () => {
           <FastForward size={14} className="mr-1.5"/> {playbackSpeed}x
         </button>
         <button 
-          onClick={clearWaypoints}
+          onClick={resetMission}
           className="flex-1 flex justify-center items-center py-2.5 rounded-lg bg-zinc-800/60 hover:bg-red-500/20 hover:text-red-400 text-zinc-400 transition-colors"
-          title="Reset Waypoints"
+          title="Reset Mission"
         >
-          <Square size={16} />
+          <RotateCcw size={16} />
         </button>
-      </div>
+
+          </div>
+
+          {/* Flight Parameters */}
+          <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] text-zinc-400 font-medium">Max speed</label>
+                  <span className="text-[10px] font-mono text-cyan-300">{maxVelocity.toFixed(1)} m/s</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="30"
+                  step="0.5"
+                  value={maxVelocity}
+                  onChange={(e) => setMaxVelocity(parseFloat(e.target.value))}
+                  className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                />
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] text-zinc-400 font-medium">Safety radius</label>
+                  <span className="text-[10px] font-mono text-amber-300">{safeDistance.toFixed(1)} m</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  step="0.5"
+                  value={safeDistance}
+                  onChange={(e) => setSafeDistance(parseFloat(e.target.value))}
+                  className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
+              </div>
+          </div>
 
       {/* Formation Selector */}
       <div>
@@ -98,11 +143,14 @@ const SwarmController: React.FC = () => {
           {formations.map((f) => (
             <button
               key={f.value}
-              onClick={() => setFormation(f.value)}
+              onClick={() => {
+                if (f.value !== 'image' || imageFormationPoints.length > 0) setFormation(f.value);
+              }}
+              disabled={f.value === 'image' && imageFormationPoints.length === 0}
               className={`py-2 px-3 rounded-xl text-xs font-medium transition-all duration-200 ${
                 currentFormation === f.value 
                   ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' 
-                  : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-200'
+                  : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800 hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40'
               }`}
             >
               {f.label}
@@ -130,17 +178,35 @@ const SwarmController: React.FC = () => {
 
       {/* Debug Visuals Toggle */}
       <div className="pt-2 border-t border-zinc-800/80">
-        <button
-          onClick={toggleDebugVisuals}
-          className={`w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium transition-all ${
-            showDebugVisuals 
-              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' 
-              : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800'
-          }`}
-        >
-          {showDebugVisuals ? <Eye size={14} /> : <EyeOff size={14} />}
-          {showDebugVisuals ? 'Debug Visuals: On' : 'Debug Visuals: Off'}
-        </button>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={toggleDebugVisuals}
+            className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-[10px] font-medium transition-all ${
+              showDebugVisuals ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800'
+            }`}
+            title="Toggle route and center debug visuals"
+          >
+            {showDebugVisuals ? <Eye size={13} /> : <EyeOff size={13} />} Debug
+          </button>
+          <button
+            onClick={toggleTrails}
+            className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-[10px] font-medium transition-all ${
+              showTrails ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800'
+            }`}
+            title="Toggle drone motion trails"
+          >
+            <Waves size={13} /> Trails
+          </button>
+          <button
+            onClick={toggleVelocityVectors}
+            className={`flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-[10px] font-medium transition-all ${
+              showVelocityVectors ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800'
+            }`}
+            title="Toggle velocity vectors"
+          >
+            <Move3d size={13} /> Vectors
+          </button>
+        </div>
       </div>
 
       {/* Obstacle Management Toolbar */}

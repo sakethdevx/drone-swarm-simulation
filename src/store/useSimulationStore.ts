@@ -1,15 +1,24 @@
 import { create } from 'zustand';
-import type { SimulationState, FormationType, Waypoint, SwarmState, Obstacle } from '../types';
+import type { SimulationState, FormationType, Waypoint, SwarmState, Obstacle, TelemetrySample, ScenarioDefinition } from '../types';
 
 interface SimulationActions {
   setDroneCount: (count: number) => void;
   setFormation: (formation: FormationType) => void;
+  loadScenario: (scenario: ScenarioDefinition) => void;
+  setImageFormation: (points: [number, number, number][], name: string, preview: string) => void;
+  clearImageFormation: () => void;
   setSwarmState: (swarmState: SwarmState) => void;
   setSwarmCenterPosition: (pos: [number, number, number]) => void;
   setSwarmCenterVelocity: (vel: [number, number, number]) => void;
   setAssemblyError: (err: number) => void;
+  setMaxVelocity: (velocity: number) => void;
+  setSafeDistance: (distance: number) => void;
+  resetMission: () => void;
   setWaypoints: (waypoints: Waypoint[]) => void;
   addWaypoint: (waypoint: Waypoint) => void;
+  updateWaypoint: (id: string, updates: Partial<Waypoint>) => void;
+  removeWaypoint: (id: string) => void;
+  moveWaypoint: (id: string, direction: 'up' | 'down') => void;
   clearWaypoints: () => void;
   addObstacle: (obstacle: Obstacle) => void;
   removeObstacle: (id: string) => void;
@@ -20,7 +29,10 @@ interface SimulationActions {
   togglePlayback: () => void;
   setPlaybackSpeed: (speed: number) => void;
   setCurrentTime: (time: number) => void;
+  recordTelemetrySample: (sample: TelemetrySample) => void;
   toggleDebugVisuals: () => void;
+  toggleTrails: () => void;
+  toggleVelocityVectors: () => void;
 }
 
 export type SimulationStore = SimulationState & SimulationActions;
@@ -32,6 +44,10 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   safeDistance: 2.5,
   formationTransitionSpeed: 1.0,
   currentFormation: 'sphere',
+  currentScenario: 'open-sky',
+  imageFormationPoints: [],
+  imageFormationName: null,
+  imageFormationPreview: null,
   swarmState: 'IDLE',
   swarmCenterPosition: [0, 20, 0],
   swarmCenterVelocity: [0, 0, 0],
@@ -48,8 +64,11 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   isPlaying: false,
   playbackSpeed: 1.0,
   currentTime: 0,
+  telemetryHistory: [],
   bounds: [120, 100, 200],
   showDebugVisuals: true,
+  showTrails: true,
+  showVelocityVectors: false,
 
   // Actions
   // Pause playback when count changes so drones can re-assemble in the new formation.
@@ -57,14 +76,75 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   
   // Rule 1: Changing formation immediately resets swarmState to ASSEMBLING
   setFormation: (formation: FormationType) => set({ currentFormation: formation, swarmState: 'ASSEMBLING' }),
+  loadScenario: (scenario) => set({
+    currentScenario: scenario.id,
+    droneCount: scenario.droneCount,
+    currentFormation: scenario.formation,
+    waypoints: scenario.waypoints,
+    obstacles: scenario.obstacles,
+    bounds: scenario.bounds,
+    selectedObstacleId: null,
+    swarmState: 'ASSEMBLING',
+    isPlaying: false,
+    currentTime: 0,
+    telemetryHistory: [],
+    assemblyError: 99.0,
+    swarmCenterPosition: scenario.waypoints[0]?.position ?? [0, 20, 0],
+    swarmCenterVelocity: [0, 0, 0],
+  }),
+  setImageFormation: (points, name, preview) => set({
+    imageFormationPoints: points,
+    imageFormationName: name,
+    imageFormationPreview: preview,
+    currentFormation: 'image',
+    swarmState: 'ASSEMBLING',
+  }),
+  clearImageFormation: () => set({
+    imageFormationPoints: [],
+    imageFormationName: null,
+    imageFormationPreview: null,
+    currentFormation: 'sphere',
+    swarmState: 'ASSEMBLING',
+  }),
   
   setSwarmState: (swarmState: SwarmState) => set({ swarmState }),
   setSwarmCenterPosition: (pos: [number, number, number]) => set({ swarmCenterPosition: pos }),
   setSwarmCenterVelocity: (vel: [number, number, number]) => set({ swarmCenterVelocity: vel }),
   setAssemblyError: (err: number) => set({ assemblyError: err }),
+    setMaxVelocity: (velocity: number) => set({ maxVelocity: Math.max(1, Math.min(30, velocity)) }),
+    setSafeDistance: (distance: number) => set({ safeDistance: Math.max(1, Math.min(10, distance)) }),
+    resetMission: () => set((state) => ({
+      swarmState: 'IDLE',
+      isPlaying: false,
+      currentTime: 0,
+      assemblyError: 99.0,
+      swarmCenterPosition: state.waypoints[0]?.position ?? [0, 20, 0],
+      swarmCenterVelocity: [0, 0, 0],
+    })),
   
   setWaypoints: (waypoints: Waypoint[]) => set({ waypoints, swarmState: 'ASSEMBLING' }),
-  addWaypoint: (waypoint: Waypoint) => set((state) => ({ waypoints: [...state.waypoints, waypoint] })),
+  addWaypoint: (waypoint: Waypoint) => set((state) => ({ waypoints: [...state.waypoints, waypoint], swarmState: 'ASSEMBLING' })),
+  updateWaypoint: (id, updates) => set((state) => ({
+    waypoints: state.waypoints.map((waypoint) => waypoint.id === id
+      ? { ...waypoint, ...updates }
+      : waypoint),
+    swarmState: 'ASSEMBLING',
+  })),
+  removeWaypoint: (id) => set((state) => ({
+    waypoints: state.waypoints.filter((waypoint) => waypoint.id !== id),
+    swarmState: 'ASSEMBLING',
+  })),
+  moveWaypoint: (id, direction) => set((state) => {
+    const index = state.waypoints.findIndex((waypoint) => waypoint.id === id);
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (index < 0 || targetIndex < 0 || targetIndex >= state.waypoints.length) {
+      return state;
+    }
+
+    const waypoints = [...state.waypoints];
+    [waypoints[index], waypoints[targetIndex]] = [waypoints[targetIndex], waypoints[index]];
+    return { waypoints, swarmState: 'ASSEMBLING' };
+  }),
   clearWaypoints: () => set({ waypoints: [], swarmState: 'IDLE' }),
   
   addObstacle: (obstacle: Obstacle) => set((state) => ({ obstacles: [...state.obstacles, obstacle] })),
@@ -96,6 +176,11 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   // Note: currentTime is stored for future timeline scrubbing UI. The path navigator
   // uses an internal progressRef — wiring currentTime to it is a future enhancement.
   setCurrentTime: (time: number) => set({ currentTime: time }),
+  recordTelemetrySample: (sample) => set((state) => ({
+    telemetryHistory: [...state.telemetryHistory.slice(-59), sample],
+  })),
   
   toggleDebugVisuals: () => set((state) => ({ showDebugVisuals: !state.showDebugVisuals })),
+  toggleTrails: () => set((state) => ({ showTrails: !state.showTrails })),
+  toggleVelocityVectors: () => set((state) => ({ showVelocityVectors: !state.showVelocityVectors })),
 }));

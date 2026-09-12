@@ -13,12 +13,14 @@ export const SwarmPathNavigator: React.FC = () => {
   const setSwarmState = useSimulationStore((s) => s.setSwarmState);
   const setSwarmCenterPosition = useSimulationStore((s) => s.setSwarmCenterPosition);
   const setSwarmCenterVelocity = useSimulationStore((s) => s.setSwarmCenterVelocity);
+    const setCurrentTime = useSimulationStore((s) => s.setCurrentTime);
   const playbackSpeed = useSimulationStore((s) => s.playbackSpeed);
   const maxVelocity = useSimulationStore((s) => s.maxVelocity);
 
   const progressRef = useRef(0);
   // Track previous swarmState to detect transitions into ASSEMBLING
   const prevSwarmStateRef = useRef<SwarmState>('IDLE');
+  const lastPublishedProgressRef = useRef(-1);
 
   // Build Catmull-Rom Spline from Waypoints
   const { curve, pathLength } = useMemo(() => {
@@ -41,12 +43,14 @@ export const SwarmPathNavigator: React.FC = () => {
   // Reset progress when waypoints change (path rebuilt)
   useEffect(() => {
     progressRef.current = 0;
+    lastPublishedProgressRef.current = -1;
+    setCurrentTime(0);
     if (curve) {
       const startPt = curve.getPointAt(0);
       setSwarmCenterPosition([startPt.x, startPt.y, startPt.z]);
       setSwarmCenterVelocity([0, 0, 0]);
     }
-  }, [waypoints, curve, setSwarmCenterPosition, setSwarmCenterVelocity]);
+  }, [waypoints, curve, setSwarmCenterPosition, setSwarmCenterVelocity, setCurrentTime]);
 
   // Bug fix: also reset progress when swarmState transitions INTO ASSEMBLING from elsewhere
   // (e.g. setDroneCount or setFormation). Without this, resuming after a formation change
@@ -54,6 +58,8 @@ export const SwarmPathNavigator: React.FC = () => {
   useEffect(() => {
     if (swarmState === 'ASSEMBLING' && prevSwarmStateRef.current !== 'ASSEMBLING') {
       progressRef.current = 0;
+      lastPublishedProgressRef.current = -1;
+      setCurrentTime(0);
       if (curve) {
         const startPt = curve.getPointAt(0);
         setSwarmCenterPosition([startPt.x, startPt.y, startPt.z]);
@@ -61,7 +67,7 @@ export const SwarmPathNavigator: React.FC = () => {
       }
     }
     prevSwarmStateRef.current = swarmState;
-  }, [swarmState, curve, setSwarmCenterPosition, setSwarmCenterVelocity]);
+  }, [swarmState, curve, setSwarmCenterPosition, setSwarmCenterVelocity, setCurrentTime]);
 
   useFrame((_state, delta) => {
     if (!curve || pathLength <= 0) return;
@@ -87,6 +93,11 @@ export const SwarmPathNavigator: React.FC = () => {
       
       progressRef.current = Math.min(1.0, progressRef.current + dtProgress);
       const t = progressRef.current;
+
+      if (t - lastPublishedProgressRef.current >= 0.01 || t >= 1.0) {
+        setCurrentTime(t);
+        lastPublishedProgressRef.current = t;
+      }
 
       const pt = curve.getPointAt(t);
       const tangent = curve.getTangentAt(t).normalize();
