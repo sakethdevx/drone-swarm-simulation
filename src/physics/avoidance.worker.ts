@@ -169,6 +169,6 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     velocities[idx + 2] = newVz;
   }
 
-  // Send the updated buffers back
-  self.postMessage({ positions, velocities } as WorkerOutput);
+  // Transfer the typed array buffers back with zero-copy — avoids structured clone overhead
+  self.postMessage({ positions, velocities } as WorkerOutput, [positions.buffer, velocities.buffer]);
 };

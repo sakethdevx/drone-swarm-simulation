@@ -3,7 +3,12 @@ import { useSimulationStore } from '../../store/useSimulationStore';
 import { Activity, Battery, Cpu, Target } from 'lucide-react';
 
 const TelemetryOverlay: React.FC = () => {
-  const { droneCount, waypoints, currentFormation, assemblyError, swarmState } = useSimulationStore();
+  // Individual selectors prevent this component from re-rendering on every physics tick
+  const droneCount = useSimulationStore((s) => s.droneCount);
+  const waypoints = useSimulationStore((s) => s.waypoints);
+  const currentFormation = useSimulationStore((s) => s.currentFormation);
+  const assemblyError = useSimulationStore((s) => s.assemblyError);
+  const swarmState = useSimulationStore((s) => s.swarmState);
   const [fps, setFps] = useState(0);
 
   // Simple FPS counter
@@ -60,8 +65,8 @@ const TelemetryOverlay: React.FC = () => {
           <div className="flex flex-col">
             <span className="text-xs text-zinc-400 mb-1">Avg Battery</span>
             <div className="flex items-center text-zinc-100 font-mono text-lg font-bold">
-              <Battery size={14} className="mr-1.5 text-emerald-400" />
-              99%
+              <Battery size={14} className="mr-1.5 text-zinc-500" />
+              <span className="text-zinc-500 text-sm">N/A</span>
             </div>
           </div>
         </div>

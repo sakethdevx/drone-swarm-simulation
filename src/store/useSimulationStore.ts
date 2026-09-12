@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SimulationState, DroneState, FormationType, Waypoint, SwarmState, Obstacle } from '../types';
+import type { SimulationState, FormationType, Waypoint, SwarmState, Obstacle } from '../types';
 
 interface SimulationActions {
   setDroneCount: (count: number) => void;
@@ -21,24 +21,9 @@ interface SimulationActions {
   setPlaybackSpeed: (speed: number) => void;
   setCurrentTime: (time: number) => void;
   toggleDebugVisuals: () => void;
-  setDrones: (drones: DroneState[]) => void;
-  updateDronePositions: (_positions: Float32Array) => void;
 }
 
 export type SimulationStore = SimulationState & SimulationActions;
-
-const initialDrones = (count: number): DroneState[] => {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    position: [(Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50],
-    velocity: [0, 0, 0],
-    target: [0, 0, 0],
-    color: '#3b82f6',
-    battery: 1.0,
-  }));
-};
-
-const defaultObstacles: Obstacle[] = [];
 
 export const useSimulationStore = create<SimulationStore>((set) => ({
   // Initial State
@@ -52,13 +37,12 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   swarmCenterVelocity: [0, 0, 0],
   assemblyError: 99.0,
   
-  drones: initialDrones(100),
   waypoints: [
     { id: 'wp-start', position: [0, 20, 0] },
     { id: 'wp-mid', position: [0, 20, 60] },
     { id: 'wp-end', position: [30, 25, 100] }
   ],
-  obstacles: defaultObstacles,
+  obstacles: [],
   selectedObstacleId: null,
   
   isPlaying: false,
@@ -70,7 +54,8 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   activeAlerts: [],
 
   // Actions
-  setDroneCount: (count: number) => set({ droneCount: count, drones: initialDrones(count), swarmState: 'ASSEMBLING' }),
+  // Pause playback when count changes so drones can re-assemble in the new formation.
+  setDroneCount: (count: number) => set({ droneCount: count, swarmState: 'ASSEMBLING', isPlaying: false }),
   
   // Rule 1: Changing formation immediately resets swarmState to ASSEMBLING
   setFormation: (formation: FormationType) => set({ currentFormation: formation, swarmState: 'ASSEMBLING' }),
@@ -110,11 +95,9 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   
   setPlaybackSpeed: (speed: number) => set({ playbackSpeed: speed }),
   
-  // Rule 1: Scrubbing timeline resets to ASSEMBLING
-  setCurrentTime: (time: number) => set({ currentTime: time, swarmState: 'ASSEMBLING' }),
+  // Note: currentTime is stored for future timeline scrubbing UI. The path navigator
+  // uses an internal progressRef — wiring currentTime to it is a future enhancement.
+  setCurrentTime: (time: number) => set({ currentTime: time }),
   
   toggleDebugVisuals: () => set((state) => ({ showDebugVisuals: !state.showDebugVisuals })),
-  
-  setDrones: (drones: DroneState[]) => set({ drones }),
-  updateDronePositions: (_positions: Float32Array) => {},
 }));

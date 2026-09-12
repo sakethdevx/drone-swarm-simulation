@@ -1,17 +1,16 @@
 export class SpatialHashGrid {
   private cellSize: number;
-  private cells: Map<string, number[]>;
+  // Numeric key is significantly faster than string interpolation on hot paths
+  private cells: Map<number, number[]>;
 
   constructor(cellSize: number) {
     this.cellSize = cellSize;
     this.cells = new Map();
   }
 
-  private hash(x: number, y: number, z: number): string {
-    const cx = Math.floor(x / this.cellSize);
-    const cy = Math.floor(y / this.cellSize);
-    const cz = Math.floor(z / this.cellSize);
-    return `${cx},${cy},${cz}`;
+  private hash(cx: number, cy: number, cz: number): number {
+    // Large prime mixing — cheap and collision-resistant for typical simulation coords
+    return (cx * 92837111 ^ cy * 689287499 ^ cz * 283923481) | 0;
   }
 
   public clear(): void {
@@ -19,7 +18,10 @@ export class SpatialHashGrid {
   }
 
   public insert(id: number, x: number, y: number, z: number): void {
-    const key = this.hash(x, y, z);
+    const cx = Math.floor(x / this.cellSize);
+    const cy = Math.floor(y / this.cellSize);
+    const cz = Math.floor(z / this.cellSize);
+    const key = this.hash(cx, cy, cz);
     const cell = this.cells.get(key);
     if (cell) {
       cell.push(id);
@@ -40,8 +42,7 @@ export class SpatialHashGrid {
     for (let cx = minX; cx <= maxX; cx++) {
       for (let cy = minY; cy <= maxY; cy++) {
         for (let cz = minZ; cz <= maxZ; cz++) {
-          const key = `${cx},${cy},${cz}`;
-          const cell = this.cells.get(key);
+          const cell = this.cells.get(this.hash(cx, cy, cz));
           if (cell) {
             nearby.push(...cell);
           }

@@ -18,7 +18,7 @@ const DroneSwarm: React.FC = () => {
   const safeDistance = useSimulationStore((state) => state.safeDistance);
   const swarmCenterPosition = useSimulationStore((state) => state.swarmCenterPosition);
   const swarmCenterVelocity = useSimulationStore((state) => state.swarmCenterVelocity);
-  const obstacles = useSimulationStore((state) => state.obstacles);
+  // obstacles is read directly from store in useFrame to avoid stale closures
   const setAssemblyError = useSimulationStore((state) => state.setAssemblyError);
   
   const buffersRef = useRef({
@@ -145,17 +145,23 @@ const DroneSwarm: React.FC = () => {
         radius: o.radius
       }));
 
+      // Use .slice() to create Float32Array copies, then transfer ownership (zero-copy)
+      // instead of Array.from() which converts to slow JS number arrays.
+      const posCopy = positions.slice();
+      const velCopy = velocities.slice();
+      const tgtCopy = targets.slice();
+
       worker.postMessage({
-        positions: Array.from(positions),
-        velocities: Array.from(velocities),
-        targets: Array.from(targets),
+        positions: posCopy,
+        velocities: velCopy,
+        targets: tgtCopy,
         swarmCenterVelocity,
         obstacles: obstaclePayload,
         count: droneCount,
         dt: Math.min(delta, 0.1),
         maxVelocity,
         safeDistance
-      });
+      }, [posCopy.buffer, velCopy.buffer, tgtCopy.buffer]);
     }
 
     // 3. Update InstancedMesh matrix
@@ -171,7 +177,12 @@ const DroneSwarm: React.FC = () => {
         const speedSq = vx*vx + vy*vy + vz*vz;
         
         if (speedSq > 0.05) {
-          const targetRot = new THREE.Vector3(positions[idx] + vx, positions[idx] + vy, positions[idx] + vz);
+          // Bug fix: was using positions[idx] (X) for all three components
+          const targetRot = new THREE.Vector3(
+            positions[idx]     + vx,
+            positions[idx + 1] + vy,
+            positions[idx + 2] + vz
+          );
           dummy.lookAt(targetRot);
         }
         

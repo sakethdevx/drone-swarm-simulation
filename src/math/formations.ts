@@ -96,20 +96,22 @@ const generateVShape = (count: number, center: Vector3): Vector3[] => {
   let row = 1;
   
   while (added < count) {
-    // Left wing
+    // Left wing — deterministic Y offset alternating by row (no Math.random)
     if (added < count) {
+      const yOffset = (row % 2 === 0) ? 0.3 : -0.3;
       points.push([
         center[0] - Math.sin(angle) * row * spacing,
-        center[1] + (Math.random() - 0.5) * 0.5,
+        center[1] + yOffset,
         center[2] + 5 - Math.cos(angle) * row * spacing,
       ]);
       added++;
     }
     // Right wing
     if (added < count) {
+      const yOffset = (row % 2 === 0) ? -0.3 : 0.3;
       points.push([
         center[0] + Math.sin(angle) * row * spacing,
-        center[1] + (Math.random() - 0.5) * 0.5,
+        center[1] + yOffset,
         center[2] + 5 - Math.cos(angle) * row * spacing,
       ]);
       added++;
@@ -152,11 +154,13 @@ const generateHelix = (count: number, center: Vector3): Vector3[] => {
   return points;
 };
 
-// Greedy nearest neighbor assignment to minimize crossing paths
+// Greedy nearest neighbor assignment to minimize crossing paths.
+// Uses a Uint8Array used-set instead of splice() to avoid O(n³) complexity.
+// Complexity: O(n²) — acceptable for n ≤ 500.
 export const matchTargetsGreedy = (currentPos: Float32Array, targets: Vector3[]): Vector3[] => {
   const count = targets.length;
   const matchedTargets: Vector3[] = new Array(count);
-  const availableTargets = [...targets];
+  const used = new Uint8Array(count); // 0 = available, 1 = taken
   
   for (let i = 0; i < count; i++) {
     const px = currentPos[i * 3];
@@ -166,8 +170,9 @@ export const matchTargetsGreedy = (currentPos: Float32Array, targets: Vector3[])
     let minDist = Infinity;
     let bestIdx = -1;
     
-    for (let j = 0; j < availableTargets.length; j++) {
-      const t = availableTargets[j];
+    for (let j = 0; j < count; j++) {
+      if (used[j]) continue;
+      const t = targets[j];
       const dx = px - t[0];
       const dy = py - t[1];
       const dz = pz - t[2];
@@ -180,8 +185,8 @@ export const matchTargetsGreedy = (currentPos: Float32Array, targets: Vector3[])
     }
     
     if (bestIdx !== -1) {
-      matchedTargets[i] = availableTargets[bestIdx];
-      availableTargets.splice(bestIdx, 1);
+      matchedTargets[i] = targets[bestIdx];
+      used[bestIdx] = 1;
     } else {
       matchedTargets[i] = [px, py, pz];
     }

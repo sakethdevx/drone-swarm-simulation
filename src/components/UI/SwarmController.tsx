@@ -19,18 +19,27 @@ const stateBadges: Record<SwarmState, { label: string; color: string }> = {
 };
 
 const SwarmController: React.FC = () => {
-  const { 
-    droneCount, setDroneCount, 
-    currentFormation, setFormation,
-    swarmState,
-    isPlaying, togglePlayback,
-    playbackSpeed, setPlaybackSpeed,
-    clearWaypoints,
-    showDebugVisuals, toggleDebugVisuals,
-    obstacles, addObstacle, clearAllObstacles,
-    selectedObstacleId, updateObstacleRadius, removeObstacle
-  } = useSimulationStore();
-  
+  // Individual selectors — each only re-renders when its own slice changes,
+  // preventing 60Hz re-renders caused by setAssemblyError on every physics tick.
+  const droneCount = useSimulationStore((s) => s.droneCount);
+  const setDroneCount = useSimulationStore((s) => s.setDroneCount);
+  const currentFormation = useSimulationStore((s) => s.currentFormation);
+  const setFormation = useSimulationStore((s) => s.setFormation);
+  const swarmState = useSimulationStore((s) => s.swarmState);
+  const isPlaying = useSimulationStore((s) => s.isPlaying);
+  const togglePlayback = useSimulationStore((s) => s.togglePlayback);
+  const playbackSpeed = useSimulationStore((s) => s.playbackSpeed);
+  const setPlaybackSpeed = useSimulationStore((s) => s.setPlaybackSpeed);
+  const clearWaypoints = useSimulationStore((s) => s.clearWaypoints);
+  const showDebugVisuals = useSimulationStore((s) => s.showDebugVisuals);
+  const toggleDebugVisuals = useSimulationStore((s) => s.toggleDebugVisuals);
+  const obstacles = useSimulationStore((s) => s.obstacles);
+  const addObstacle = useSimulationStore((s) => s.addObstacle);
+  const clearAllObstacles = useSimulationStore((s) => s.clearAllObstacles);
+  const selectedObstacleId = useSimulationStore((s) => s.selectedObstacleId);
+  const updateObstacleRadius = useSimulationStore((s) => s.updateObstacleRadius);
+  const removeObstacle = useSimulationStore((s) => s.removeObstacle);
+
   const selectedObstacle = obstacles.find(o => o.id === selectedObstacleId);
 
   const handleAddObstacle = () => {

@@ -37,7 +37,7 @@ export interface SimulationState {
   swarmCenterVelocity: [number, number, number];
   assemblyError: number;
   
-  drones: DroneState[];
+  drones?: never; // Removed: drone positions are tracked in Float32Array buffers in DroneSwarm.tsx
   waypoints: Waypoint[];
   obstacles: Obstacle[];
   selectedObstacleId: string | null;
