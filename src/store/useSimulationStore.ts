@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SimulationState, FormationType, Waypoint, SwarmState, Obstacle, TelemetrySample, ScenarioDefinition, SavedMission } from '../types';
+import type { SimulationState, FormationType, Waypoint, SwarmState, Obstacle, TelemetrySample, ScenarioDefinition, SavedMission, ImageFormationPoint } from '../types';
 
 const MISSIONS_STORAGE_KEY = 'drone-simulation-missions';
 
@@ -26,7 +26,7 @@ interface SimulationActions {
   saveMission: (name: string) => void;
   loadMission: (id: string) => void;
   deleteMission: (id: string) => void;
-  setImageFormation: (points: [number, number, number][], name: string, preview: string) => void;
+  setImageFormation: (points: ImageFormationPoint[], name: string, preview: string, droneCount: number) => void;
   clearImageFormation: () => void;
   setSwarmState: (swarmState: SwarmState) => void;
   setSwarmCenterPosition: (pos: [number, number, number]) => void;
@@ -171,10 +171,11 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
     persistSavedMissions(savedMissions);
     return { savedMissions };
   }),
-  setImageFormation: (points, name, preview) => set({
+  setImageFormation: (points, name, preview, droneCount) => set({
     imageFormationPoints: points,
     imageFormationName: name,
     imageFormationPreview: preview,
+    droneCount,
     currentFormation: 'image',
     swarmState: 'ASSEMBLING',
   }),

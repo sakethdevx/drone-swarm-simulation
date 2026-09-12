@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, useLayoutEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSimulationStore } from '../../store/useSimulationStore';
@@ -23,6 +23,9 @@ const DroneSwarm: React.FC = () => {
   const swarmCenterVelocity = useSimulationStore((state) => state.swarmCenterVelocity);
   const showTrails = useSimulationStore((state) => state.showTrails);
   const showVelocityVectors = useSimulationStore((state) => state.showVelocityVectors);
+  const workerSafeDistance = currentFormation === 'image'
+    ? Math.min(safeDistance, 0.9)
+    : safeDistance;
   // obstacles is read directly from store in useFrame to avoid stale closures
   const setAssemblyError = useSimulationStore((state) => state.setAssemblyError);
   const recordTelemetrySample = useSimulationStore((state) => state.recordTelemetrySample);
@@ -74,9 +77,21 @@ const DroneSwarm: React.FC = () => {
   }, [droneCount]);
 
   // Handle formation changes: compute local relative offset vectors O_i
-  useEffect(() => {
-    const relativeTargets = currentFormation === 'image'
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (mesh && (!mesh.instanceColor || mesh.instanceColor.count !== droneCount)) {
+      mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(droneCount * 3), 3);
+      for (let i = 0; i < droneCount; i++) {
+        mesh.instanceColor.setXYZ(i, 1, 1, 1);
+      }
+      mesh.instanceColor.needsUpdate = true;
+    }
+
+    const imageTargets = currentFormation === 'image'
       ? resampleFormationPoints(imageFormationPoints, droneCount)
+      : [];
+    const relativeTargets = currentFormation === 'image'
+      ? imageTargets.map((target) => target.position)
       : generateFormation(currentFormation, droneCount, [0, 0, 0]);
     if (relativeTargets.length !== droneCount) return;
     // Match current positions to new targets to minimize path crossing
@@ -86,7 +101,21 @@ const DroneSwarm: React.FC = () => {
       rawOffsets[i * 3] = matched[i][0];
       rawOffsets[i * 3 + 1] = matched[i][1];
       rawOffsets[i * 3 + 2] = matched[i][2];
+
+      const targetIndex = relativeTargets.findIndex((target) =>
+        target[0] === matched[i][0] && target[1] === matched[i][1] && target[2] === matched[i][2],
+      );
+      if (mesh) {
+        const sampledColor = new THREE.Color(
+          currentFormation === 'image' ? imageTargets[targetIndex]?.color ?? '#38bdf8' : '#3b82f6',
+        );
+        if (sampledColor.r + sampledColor.g + sampledColor.b < 0.25) {
+          sampledColor.setHSL((i / Math.max(1, droneCount)) * 0.75, 0.85, 0.62);
+        }
+        mesh.setColorAt(i, sampledColor);
+      }
     }
+    if (mesh?.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [currentFormation, droneCount, imageFormationPoints, positions, rawOffsets]);
 
   // Removed the global randomization useEffect here to prevent teleporting existing drones.
@@ -107,6 +136,13 @@ const DroneSwarm: React.FC = () => {
   }, [positions, velocities]);
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const droneGeometry = useMemo(() => {
+    const geometry = new THREE.BoxGeometry(0.8, 0.2, 0.8);
+    const vertexColors = new Float32Array(geometry.attributes.position.count * 3);
+    vertexColors.fill(1);
+    geometry.setAttribute('color', new THREE.BufferAttribute(vertexColors, 3));
+    return geometry;
+  }, []);
   const trailHistory = useMemo(() => new Float32Array(droneCount * TRAIL_LENGTH * 3), [droneCount]);
   const trailInitialized = useRef(false);
   const trailGeometry = useMemo(() => {
@@ -211,7 +247,7 @@ const DroneSwarm: React.FC = () => {
         count: droneCount,
         dt: Math.min(delta, 0.1),
         maxVelocity,
-        safeDistance
+        safeDistance: workerSafeDistance
       }, [posCopy.buffer, velCopy.buffer, tgtCopy.buffer]);
     }
 
@@ -313,8 +349,8 @@ const DroneSwarm: React.FC = () => {
         <lineBasicMaterial color="#fbbf24" transparent opacity={0.7} />
       </lineSegments>
       <instancedMesh ref={meshRef} args={[undefined, undefined, droneCount]} castShadow receiveShadow>
-        <boxGeometry args={[0.8, 0.2, 0.8]} />
-        <meshStandardMaterial color="#3b82f6" emissive="#1e3a8a" emissiveIntensity={0.6} roughness={0.2} metalness={0.8} />
+        <primitive object={droneGeometry} attach="geometry" />
+        <meshBasicMaterial vertexColors={true} color="#ffffff" toneMapped={false} />
       </instancedMesh>
     </>
   );

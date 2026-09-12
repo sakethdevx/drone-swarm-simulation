@@ -17,8 +17,8 @@ const ImageFormationPanel: React.FC = () => {
     setIsProcessing(true);
     setError(null);
     try {
-      const formation = await createImageFormation(file, droneCount);
-      setImageFormation(formation.points, file.name, formation.preview);
+      const formation = await createImageFormation(file);
+      setImageFormation(formation.points, file.name, formation.preview, formation.suggestedDroneCount);
     } catch (processingError) {
       setError(processingError instanceof Error ? processingError.message : 'Image processing failed');
     } finally {
@@ -45,7 +45,7 @@ const ImageFormationPanel: React.FC = () => {
           <img src={imageFormationPreview} alt="Uploaded formation preview" className="h-16 w-16 rounded-lg border border-zinc-700 object-cover" />
           <div className="min-w-0">
             <p className="truncate text-xs font-medium text-zinc-200">{imageFormationName}</p>
-            <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">Sampled into {droneCount} show positions.</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">{droneCount} colored dots generated from the subject. Image mode selects the show density automatically.</p>
           </div>
         </div>
       ) : (

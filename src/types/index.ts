@@ -10,6 +10,11 @@ export interface Waypoint {
   holdTime?: number;
 }
 
+export interface ImageFormationPoint {
+  position: [number, number, number];
+  color: string;
+}
+
 export interface Obstacle {
   id: string;
   position: [number, number, number];
@@ -34,7 +39,7 @@ export interface SavedMission {
   createdAt: number;
   droneCount: number;
   formation: FormationType;
-  imageFormationPoints: [number, number, number][];
+  imageFormationPoints: ImageFormationPoint[];
   imageFormationName: string | null;
   imageFormationPreview: string | null;
   maxVelocity: number;
@@ -73,7 +78,7 @@ export interface SimulationState {
   currentScenario: string;
   currentMissionName: string | null;
   savedMissions: SavedMission[];
-  imageFormationPoints: [number, number, number][];
+  imageFormationPoints: ImageFormationPoint[];
   imageFormationName: string | null;
   imageFormationPreview: string | null;
   swarmState: SwarmState;
