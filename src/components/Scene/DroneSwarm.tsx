@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSimulationStore } from '../../store/useSimulationStore';
 import { generateFormation, matchTargetsGreedy, rotateVectorHeading } from '../../math/formations';
-import { resampleFormationPoints } from '../../math/imageFormation';
+import { resampleFormationPoints } from '../../math/imageFormation.ts';
 import type { ObstacleData } from '../../physics/avoidance.worker';
 
 // Web worker singleton
@@ -110,7 +110,7 @@ const DroneSwarm: React.FC = () => {
           currentFormation === 'image' ? imageTargets[targetIndex]?.color ?? '#38bdf8' : '#3b82f6',
         );
         if (sampledColor.r + sampledColor.g + sampledColor.b < 0.25) {
-          sampledColor.setHSL((i / Math.max(1, droneCount)) * 0.75, 0.85, 0.62);
+          sampledColor.set('#172554');
         }
         mesh.setColorAt(i, sampledColor);
       }
