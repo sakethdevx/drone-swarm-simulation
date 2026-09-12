@@ -109,7 +109,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
 
       if (distSq > 0 && distSq < effectiveRadius * effectiveRadius) {
         const dist = Math.sqrt(distSq);
-        const force = ((effectiveRadius - dist) / dist) * 2.5; // Strong obstacle repulsion
+        const force = ((effectiveRadius - dist) / dist) * 15.0; // Strong obstacle repulsion
         repX += (dx / dist) * force;
         repY += (dy / dist) * force;
         repZ += (dz / dist) * force;

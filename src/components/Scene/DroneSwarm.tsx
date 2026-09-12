@@ -109,7 +109,8 @@ const DroneSwarm: React.FC = () => {
     if (!isWorkerBusy.current && (isPlaying || useSimulationStore.getState().swarmState === 'ASSEMBLING')) {
       isWorkerBusy.current = true;
 
-      const obstaclePayload: ObstacleData[] = obstacles.map(o => ({
+      const currentObstacles = useSimulationStore.getState().obstacles;
+      const obstaclePayload: ObstacleData[] = currentObstacles.map(o => ({
         position: o.position,
         radius: o.radius
       }));

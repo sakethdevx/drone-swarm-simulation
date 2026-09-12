@@ -23,15 +23,10 @@ const ObstacleMesh: React.FC<ObstacleMeshProps> = ({ obstacle, isSelected, meshR
     <mesh
       ref={meshRef}
       position={obstacle.position}
-      // Disable click handler while selected — gizmo handles own pointer capture.
-      onClick={
-        isSelected
-          ? undefined
-          : (e) => {
-              e.stopPropagation();
-              selectObstacle(obstacle.id);
-            }
-      }
+      onClick={(e) => {
+        e.stopPropagation();
+        selectObstacle(isSelected ? null : obstacle.id);
+      }}
     >
       {obstacle.type === 'box' ? (
         <boxGeometry args={[obstacle.radius * 2, obstacle.radius * 2, obstacle.radius * 2]} />
