@@ -170,5 +170,11 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
   }
 
   // Transfer the typed array buffers back with zero-copy — avoids structured clone overhead
-  self.postMessage({ positions, velocities } as WorkerOutput, [positions.buffer, velocities.buffer]);
+  const workerScope = self as unknown as {
+    postMessage(message: WorkerOutput, transfer: Transferable[]): void;
+  };
+  workerScope.postMessage({ positions, velocities }, [
+    positions.buffer as ArrayBuffer,
+    velocities.buffer as ArrayBuffer,
+  ]);
 };
