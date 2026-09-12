@@ -8,10 +8,14 @@ export const generateFormation = (type: FormationType, count: number, center: Ve
       return generateSphere(count, center);
     case 'grid':
       return generateGrid(count, center);
-    case 'v-shape':
-      return generateVShape(count, center);
     case 'helix':
       return generateHelix(count, center);
+    case 'line':
+      return generateLine(count, center);
+    case 'ring':
+      return generateRing(count, center);
+    case 'diamond':
+      return generateDiamond(count, center);
     default:
       return generateSphere(count, center);
   }
@@ -84,54 +88,54 @@ const generateGrid = (count: number, center: Vector3): Vector3[] => {
   return points;
 };
 
-const generateVShape = (count: number, center: Vector3): Vector3[] => {
+const generateLine = (count: number, center: Vector3): Vector3[] => {
   const points: Vector3[] = [];
-  const spacing = 3.0;
-  const angle = Math.PI / 6; // 30 degrees half-angle
-  
-  // Leader at front
-  points.push([center[0], center[1], center[2] + 5]);
-  
-  let added = 1;
-  let row = 1;
-  
-  while (added < count) {
-    // Left wing — deterministic Y offset alternating by row (no Math.random)
-    if (added < count) {
-      const yOffset = (row % 2 === 0) ? 0.3 : -0.3;
-      points.push([
-        center[0] - Math.sin(angle) * row * spacing,
-        center[1] + yOffset,
-        center[2] + 5 - Math.cos(angle) * row * spacing,
-      ]);
-      added++;
-    }
-    // Right wing
-    if (added < count) {
-      const yOffset = (row % 2 === 0) ? -0.3 : 0.3;
-      points.push([
-        center[0] + Math.sin(angle) * row * spacing,
-        center[1] + yOffset,
-        center[2] + 5 - Math.cos(angle) * row * spacing,
-      ]);
-      added++;
-    }
-    
-    // Add inner filling if count is large
-    if (row > 2) {
-      for (let i = 1; i < row; i++) {
-        if (added >= count) break;
+  const spacing = 3.2;
+  const offset = ((count - 1) * spacing) / 2;
+
+  for (let i = 0; i < count; i++) {
+    points.push([center[0] + i * spacing - offset, center[1], center[2]]);
+  }
+
+  return points;
+};
+
+const generateRing = (count: number, center: Vector3): Vector3[] => {
+  const points: Vector3[] = [];
+  const radius = Math.max(8, count * 0.55);
+
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    points.push([
+      center[0] + Math.cos(angle) * radius,
+      center[1],
+      center[2] + Math.sin(angle) * radius,
+    ]);
+  }
+
+  return points;
+};
+
+const generateDiamond = (count: number, center: Vector3): Vector3[] => {
+  const points: Vector3[] = [];
+  const spacing = 3.2;
+
+  for (let radius = 0; points.length < count; radius++) {
+    for (let x = -radius; x <= radius && points.length < count; x++) {
+      const z = radius - Math.abs(x);
+      const positions = z === 0 ? [0] : [z, -z];
+
+      for (const signedZ of positions) {
+        if (points.length >= count) break;
         points.push([
-          center[0] - Math.sin(angle) * (row - i) * spacing + Math.sin(angle) * i * spacing,
-          center[1] - i * 1.0,
-          center[2] + 5 - Math.cos(angle) * row * spacing,
+          center[0] + x * spacing,
+          center[1],
+          center[2] + signedZ * spacing,
         ]);
-        added++;
       }
     }
-    
-    row++;
   }
+
   return points;
 };
 

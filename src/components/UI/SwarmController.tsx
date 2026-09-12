@@ -7,8 +7,10 @@ import { v4 as uuidv4 } from 'uuid';
 const formations: { value: FormationType; label: string }[] = [
   { value: 'sphere', label: 'Sphere' },
   { value: 'grid', label: 'Matrix Grid' },
-  { value: 'v-shape', label: 'Dynamic V-Shape' },
   { value: 'helix', label: 'Double Helix' },
+  { value: 'line', label: 'Line' },
+  { value: 'ring', label: 'Ring' },
+  { value: 'diamond', label: 'Diamond' },
 ];
 
 const stateBadges: Record<SwarmState, { label: string; color: string }> = {

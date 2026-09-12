@@ -1,4 +1,4 @@
-export type FormationType = 'sphere' | 'grid' | 'v-shape' | 'helix';
+export type FormationType = 'sphere' | 'grid' | 'helix' | 'line' | 'ring' | 'diamond';
 
 export type SwarmState = 'IDLE' | 'ASSEMBLING' | 'NAVIGATING' | 'COMPLETED';
 
