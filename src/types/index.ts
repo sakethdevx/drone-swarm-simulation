@@ -50,10 +50,6 @@ export interface SimulationState {
   // Visual & Geofence Bounds
   bounds: [number, number, number]; // [width, height, depth]
   showDebugVisuals: boolean;
-  
-  // Telemetry
-  fps: number;
-  activeAlerts: string[];
 }
 
 export interface TelemetryData {

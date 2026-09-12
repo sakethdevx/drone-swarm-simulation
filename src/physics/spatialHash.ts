@@ -1,6 +1,5 @@
 export class SpatialHashGrid {
   private cellSize: number;
-  // Numeric key is significantly faster than string interpolation on hot paths
   private cells: Map<number, number[]>;
 
   constructor(cellSize: number) {
@@ -8,9 +7,13 @@ export class SpatialHashGrid {
     this.cells = new Map();
   }
 
+  // Collision-free encoding for coords within [-500, 500] cell range.
+  // Avoids the `| 0` truncation that caused 32-bit overflow collisions.
   private hash(cx: number, cy: number, cz: number): number {
-    // Large prime mixing — cheap and collision-resistant for typical simulation coords
-    return (cx * 92837111 ^ cy * 689287499 ^ cz * 283923481) | 0;
+    const ox = cx + 500;
+    const oy = cy + 500;
+    const oz = cz + 500;
+    return ox + oy * 1001 + oz * 1001 * 1001;
   }
 
   public clear(): void {

@@ -133,7 +133,12 @@ const DroneSwarm: React.FC = () => {
       }
     }
 
-    setAssemblyError(Math.sqrt(maxErrorSq));
+    // Only publish assembly error when the swarm is active.
+    // Avoids 60 unnecessary Zustand writes/second when the simulation is paused/idle.
+    const swarmStateNow = useSimulationStore.getState().swarmState;
+    if (swarmStateNow === 'ASSEMBLING' || swarmStateNow === 'NAVIGATING') {
+      setAssemblyError(Math.sqrt(maxErrorSq));
+    }
 
     // 2. Send data to worker if worker is free and simulation active
     if (!isWorkerBusy.current && (isPlaying || useSimulationStore.getState().swarmState === 'ASSEMBLING')) {

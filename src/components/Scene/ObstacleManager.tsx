@@ -68,6 +68,10 @@ const ObstacleManager: React.FC = () => {
   // Grab OrbitControls from drei's makeDefault context
   const orbitControls = useThree((state) => (state as any).controls);
 
+  // Track the current TC instance to detect when the ref callback fires
+  // for the same instance vs a new mount (prevents re-attaching on every re-render)
+  const tcRef = useRef<any>(null);
+
   // Stable map of obstacle id → mesh ref (survives re-renders)
   const meshRefs = useRef<Map<string, React.RefObject<THREE.Mesh | null>>>(new Map());
   const getMeshRef = (id: string) => {
@@ -101,25 +105,27 @@ const ObstacleManager: React.FC = () => {
       {selectedObstacleId && selectedMeshRef && (
         <TransformControls
           ref={(tc: any) => {
+            // Guard: only re-run setup when the TC instance itself changes (new mount).
+            // Without this check, React calls the ref callback on every re-render,
+            // causing tc.attach() to reset the gizmo's transform to origin on every
+            // obstacle radius/position store update.
+            if (tc === tcRef.current) return;
+
+            // Clean up the previous instance
+            if (tcRef.current?.__onDragging) {
+              tcRef.current.removeEventListener('dragging-changed', tcRef.current.__onDragging);
+            }
+
+            tcRef.current = tc;
             if (!tc || !selectedMeshRef.current) return;
 
-            // Imperatively attach — gizmo doesn't wrap mesh in JSX, so React
-            // never re-mounts it when the parent re-renders from store updates.
             tc.attach(selectedMeshRef.current);
-
-            // Register dragging-changed once; guard against double-registration
-            // by storing the listener on the instance.
-            if (tc.__onDragging) {
-              tc.removeEventListener('dragging-changed', tc.__onDragging);
-            }
 
             const onDraggingChanged = (event: any) => {
               // Disable orbit while actively dragging a gizmo axis/plane
               if (orbitControls) orbitControls.enabled = !event.value;
 
               // Sync final position to store only when the drag ends.
-              // This is the key fix: avoids flooding Zustand on every mousemove
-              // tick which caused continuous re-renders and gizmo flicker.
               if (!event.value && selectedMeshRef.current) {
                 const { x, y, z } = selectedMeshRef.current.position;
                 updateObstaclePosition(selectedObstacleId, [x, y, z]);

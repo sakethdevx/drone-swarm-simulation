@@ -50,8 +50,6 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   currentTime: 0,
   bounds: [120, 100, 200],
   showDebugVisuals: true,
-  fps: 0,
-  activeAlerts: [],
 
   // Actions
   // Pause playback when count changes so drones can re-assemble in the new formation.

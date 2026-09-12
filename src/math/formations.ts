@@ -67,17 +67,17 @@ const generateGrid = (count: number, center: Vector3): Vector3[] => {
   
   const offset = (size - 1) * spacing / 2.0;
 
-  let added = 0;
-  for (let x = 0; x < size; x++) {
+  // Labeled break exits all three loops as soon as count is reached,
+  // avoiding wasted iterations through the rest of the grid.
+  outer: for (let x = 0; x < size; x++) {
     for (let y = 0; y < size; y++) {
       for (let z = 0; z < size; z++) {
-        if (added >= count) break;
+        if (points.length >= count) break outer;
         points.push([
           center[0] + (x * spacing) - offset,
           center[1] + (y * spacing) - offset,
           center[2] + (z * spacing) - offset,
         ]);
-        added++;
       }
     }
   }

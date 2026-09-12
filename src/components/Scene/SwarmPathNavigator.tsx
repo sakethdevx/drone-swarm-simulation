@@ -2,20 +2,23 @@ import React, { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useSimulationStore } from '../../store/useSimulationStore';
+import type { SwarmState } from '../../types';
 
 export const SwarmPathNavigator: React.FC = () => {
-  const {
-    waypoints,
-    isPlaying,
-    swarmState,
-    setSwarmState,
-    setSwarmCenterPosition,
-    setSwarmCenterVelocity,
-    playbackSpeed,
-    maxVelocity,
-  } = useSimulationStore();
+  // Individual selectors prevent this component from re-rendering on every store update.
+  // Previously a full-store subscription caused re-renders and useMemo re-checks every frame.
+  const waypoints = useSimulationStore((s) => s.waypoints);
+  const isPlaying = useSimulationStore((s) => s.isPlaying);
+  const swarmState = useSimulationStore((s) => s.swarmState);
+  const setSwarmState = useSimulationStore((s) => s.setSwarmState);
+  const setSwarmCenterPosition = useSimulationStore((s) => s.setSwarmCenterPosition);
+  const setSwarmCenterVelocity = useSimulationStore((s) => s.setSwarmCenterVelocity);
+  const playbackSpeed = useSimulationStore((s) => s.playbackSpeed);
+  const maxVelocity = useSimulationStore((s) => s.maxVelocity);
 
   const progressRef = useRef(0);
+  // Track previous swarmState to detect transitions into ASSEMBLING
+  const prevSwarmStateRef = useRef<SwarmState>('IDLE');
 
   // Build Catmull-Rom Spline from Waypoints
   const { curve, pathLength } = useMemo(() => {
@@ -35,7 +38,7 @@ export const SwarmPathNavigator: React.FC = () => {
     return { curve: c, pathLength: c.getLength() };
   }, [waypoints]);
 
-  // Reset progress on waypoint or formation change
+  // Reset progress when waypoints change (path rebuilt)
   useEffect(() => {
     progressRef.current = 0;
     if (curve) {
@@ -44,6 +47,21 @@ export const SwarmPathNavigator: React.FC = () => {
       setSwarmCenterVelocity([0, 0, 0]);
     }
   }, [waypoints, curve, setSwarmCenterPosition, setSwarmCenterVelocity]);
+
+  // Bug fix: also reset progress when swarmState transitions INTO ASSEMBLING from elsewhere
+  // (e.g. setDroneCount or setFormation). Without this, resuming after a formation change
+  // would continue from wherever the path had previously reached.
+  useEffect(() => {
+    if (swarmState === 'ASSEMBLING' && prevSwarmStateRef.current !== 'ASSEMBLING') {
+      progressRef.current = 0;
+      if (curve) {
+        const startPt = curve.getPointAt(0);
+        setSwarmCenterPosition([startPt.x, startPt.y, startPt.z]);
+        setSwarmCenterVelocity([0, 0, 0]);
+      }
+    }
+    prevSwarmStateRef.current = swarmState;
+  }, [swarmState, curve, setSwarmCenterPosition, setSwarmCenterVelocity]);
 
   useFrame((_state, delta) => {
     if (!curve || pathLength <= 0) return;
