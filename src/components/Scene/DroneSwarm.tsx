@@ -21,14 +21,49 @@ const DroneSwarm: React.FC = () => {
   const obstacles = useSimulationStore((state) => state.obstacles);
   const setAssemblyError = useSimulationStore((state) => state.setAssemblyError);
   
+  const buffersRef = useRef({
+    positions: new Float32Array(0),
+    velocities: new Float32Array(0),
+    targets: new Float32Array(0),
+    rawOffsets: new Float32Array(0),
+    prevCount: 0
+  });
+
   // High-performance buffers
   const { positions, velocities, targets, rawOffsets } = useMemo(() => {
-    return {
-      positions: new Float32Array(droneCount * 3),
-      velocities: new Float32Array(droneCount * 3),
-      targets: new Float32Array(droneCount * 3),
-      rawOffsets: new Float32Array(droneCount * 3),
+    const prev = buffersRef.current;
+    
+    const newPositions = new Float32Array(droneCount * 3);
+    const newVelocities = new Float32Array(droneCount * 3);
+    const newTargets = new Float32Array(droneCount * 3);
+    const newRawOffsets = new Float32Array(droneCount * 3);
+    
+    // Copy existing data for surviving drones
+    const copyCount = Math.min(prev.prevCount, droneCount);
+    if (copyCount > 0) {
+      newPositions.set(prev.positions.subarray(0, copyCount * 3));
+      newVelocities.set(prev.velocities.subarray(0, copyCount * 3));
+      newTargets.set(prev.targets.subarray(0, copyCount * 3));
+      newRawOffsets.set(prev.rawOffsets.subarray(0, copyCount * 3));
+    }
+    
+    // Randomize only for newly added drones
+    const center = useSimulationStore.getState().swarmCenterPosition;
+    for (let i = copyCount; i < droneCount; i++) {
+      newPositions[i * 3] = center[0] + (Math.random() - 0.5) * 40;
+      newPositions[i * 3 + 1] = center[1] + (Math.random() - 0.5) * 20;
+      newPositions[i * 3 + 2] = center[2] + (Math.random() - 0.5) * 40;
+    }
+
+    buffersRef.current = {
+      positions: newPositions,
+      velocities: newVelocities,
+      targets: newTargets,
+      rawOffsets: newRawOffsets,
+      prevCount: droneCount
     };
+    
+    return buffersRef.current;
   }, [droneCount]);
 
   // Handle formation changes: compute local relative offset vectors O_i
@@ -44,22 +79,17 @@ const DroneSwarm: React.FC = () => {
     }
   }, [currentFormation, droneCount, positions, rawOffsets]);
 
-  // Initialize random positions around initial swarmCenterPosition
-  useEffect(() => {
-    for (let i = 0; i < droneCount; i++) {
-      positions[i * 3] = swarmCenterPosition[0] + (Math.random() - 0.5) * 40;
-      positions[i * 3 + 1] = swarmCenterPosition[1] + (Math.random() - 0.5) * 20;
-      positions[i * 3 + 2] = swarmCenterPosition[2] + (Math.random() - 0.5) * 40;
-    }
-  }, [droneCount]);
+  // Removed the global randomization useEffect here to prevent teleporting existing drones.
 
   // Handle Web Worker messages
   const isWorkerBusy = useRef(false);
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       const { positions: newPositions, velocities: newVelocities } = e.data;
-      positions.set(newPositions);
-      velocities.set(newVelocities);
+      if (newPositions.length === positions.length) {
+        positions.set(newPositions);
+        velocities.set(newVelocities);
+      }
       isWorkerBusy.current = false;
     };
     worker.addEventListener('message', handleMessage);
