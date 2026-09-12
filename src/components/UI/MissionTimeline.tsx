@@ -11,7 +11,7 @@ const MissionTimeline: React.FC = () => {
   const progress = Math.round(currentTime * 100);
 
   return (
-    <div className="pointer-events-auto w-full max-w-3xl rounded-2xl border border-zinc-800/70 bg-zinc-950/80 p-4 shadow-2xl backdrop-blur-md">
+    <div className="pointer-events-auto w-full max-w-3xl min-w-0 rounded-2xl border border-zinc-800/70 bg-zinc-950/80 p-4 shadow-2xl backdrop-blur-md">
       <div className="mb-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Route size={15} className="text-cyan-400" />
