@@ -16,6 +16,7 @@ export type WorkerInput = {
   dt: number;
   maxVelocity: number;
   safeDistance: number;
+  preserveFormation?: boolean;
 };
 
 // Output message type to main thread
@@ -36,7 +37,8 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     count, 
     dt, 
     maxVelocity, 
-    safeDistance 
+    safeDistance,
+    preserveFormation = false
   } = e.data;
   
   // Rebuild spatial hash grid
@@ -49,6 +51,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
   // Force Weights
   const W_SAFETY = 3.0; // Prioritized high repulsion safety weight
   const W_TARGET = 1.2;  // Target attraction weight
+  const neighborSafeDistance = preserveFormation ? Math.min(safeDistance, 0.9) : safeDistance;
 
   const [scVx, scVy, scVz] = swarmCenterVelocity;
 
@@ -72,7 +75,7 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     let repX = 0, repY = 0, repZ = 0;
 
     // Neighbor Drones Repulsion
-    const neighbors = grid.getNearby(px, py, pz, safeDistance * 2.0);
+    const neighbors = grid.getNearby(px, py, pz, neighborSafeDistance * 2.0);
     for (const n of neighbors) {
       if (n === i) continue;
       const nIdx = n * 3;
@@ -85,9 +88,9 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
       const dz = pz - nz;
       const distSq = dx*dx + dy*dy + dz*dz;
       
-      if (distSq > 0 && distSq < safeDistance * safeDistance) {
+      if (distSq > 0 && distSq < neighborSafeDistance * neighborSafeDistance) {
         const dist = Math.sqrt(distSq);
-        const force = (safeDistance - dist) / dist;
+        const force = (neighborSafeDistance - dist) / dist;
         repX += (dx / dist) * force;
         repY += (dy / dist) * force;
         repZ += (dz / dist) * force;

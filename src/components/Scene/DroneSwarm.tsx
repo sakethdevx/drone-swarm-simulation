@@ -23,9 +23,6 @@ const DroneSwarm: React.FC = () => {
   const swarmCenterVelocity = useSimulationStore((state) => state.swarmCenterVelocity);
   const showTrails = useSimulationStore((state) => state.showTrails);
   const showVelocityVectors = useSimulationStore((state) => state.showVelocityVectors);
-  const workerSafeDistance = currentFormation === 'image'
-    ? Math.min(safeDistance, 0.9)
-    : safeDistance;
   // obstacles is read directly from store in useFrame to avoid stale closures
   const setAssemblyError = useSimulationStore((state) => state.setAssemblyError);
   const recordTelemetrySample = useSimulationStore((state) => state.recordTelemetrySample);
@@ -247,7 +244,8 @@ const DroneSwarm: React.FC = () => {
         count: droneCount,
         dt: Math.min(delta, 0.1),
         maxVelocity,
-        safeDistance: workerSafeDistance
+        safeDistance,
+        preserveFormation: currentFormation === 'image'
       }, [posCopy.buffer, velCopy.buffer, tgtCopy.buffer]);
     }
 
